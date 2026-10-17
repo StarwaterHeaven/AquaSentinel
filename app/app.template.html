@@ -46,7 +46,11 @@ nav button:focus-visible,.btn:focus-visible,.row:focus-visible{outline:2px solid
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0}
 .panel h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600;margin:0}
 .ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.mapwrap{padding:8px 10px 4px}
+.mapwrap{padding:8px 10px 4px;position:relative}
+.zoom{position:absolute;width:40%;max-width:230px;aspect-ratio:1;background:var(--panel);border:2px solid var(--accent);border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.22);overflow:hidden}
+.zoom.tr{top:14px;right:16px} .zoom.bl{bottom:10px;left:16px}
+#zoom .base text,#zoom .base rect{display:none}
+#zoom path{vector-effect:non-scaling-stroke}
 #map{width:100%;height:auto;max-height:420px;display:block}
 @media (prefers-reduced-motion:no-preference){.selmark .pulse{transform-box:fill-box;transform-origin:center;animation:pulse 1.6s ease-out infinite}@keyframes pulse{from{transform:scale(.6);opacity:1}to{transform:scale(1.6);opacity:0}}}
 .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink2);padding:0 14px 10px}
@@ -181,7 +185,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
   <div class="grid">
     <div class="panel">
       <div class="ph"><h2>Water points</h2><div class="btns"><label class="btn" for="csvin" style="display:inline-flex;align-items:center">Import messages (CSV)</label><input id="csvin" type="file" accept=".csv,text/csv" hidden><button class="btn" id="scan">Run weekly scan</button></div></div>
-      <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg></div>
+      <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg><svg id="zoom" class="zoom" role="img" aria-label="Close-up of the selected water point and its surroundings" hidden></svg></div>
       <div class="note" id="mapsel" style="padding:0 14px 6px"></div>
       <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span><span class="maplegend"><b style="color:var(--ochre)">━</b> Road (dashed: not passable when wet)</span><span class="maplegend"><b style="color:var(--watch)">━</b> River</span><span class="maplegend"><b style="color:var(--crit)">+</b> Health facility</span><label class="maplegend" style="cursor:pointer"><input type="checkbox" id="floodtog"> May 2024 flood extent</label></div>
       <div class="filters">
@@ -521,7 +525,7 @@ function mapHTML(all) {
   if (!sp || sp.la == null) { $("#mapsel").textContent = sp ? `${short(sp.id)} ${sp.n}: no location on record` : ""; return withBase(dots); }
   const sv = view(sp), [x, y] = proj.f(sp), right = x < proj.W - 170;
   $("#mapsel").innerHTML = `Selected: <b>${esc(short(sp.id) + " " + sp.n)}</b> · ${sv.score}/100`;
-  return withBase(dots + `<g class="selmark" pointer-events="none">
+  return withBase(dots + `<rect x="${(x - ZOOM_HALF).toFixed(1)}" y="${(y - ZOOM_HALF).toFixed(1)}" width="${2 * ZOOM_HALF}" height="${2 * ZOOM_HALF}" fill="none" stroke="var(--accent)" stroke-width="1.2" rx="3" pointer-events="none"/><g class="selmark" pointer-events="none">
     <line x1="0" y1="${y.toFixed(1)}" x2="${proj.W}" y2="${y.toFixed(1)}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>
     <line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${proj.H}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>
     <circle class="pulse" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
@@ -529,6 +533,28 @@ function mapHTML(all) {
     <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="10" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
     <text x="${(right ? x + 16 : x - 16).toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${right ? "start" : "end"}" font-size="12" font-weight="700" fill="var(--ink)" stroke="var(--panel)" stroke-width="3" paint-order="stroke">${esc(short(sp.id) + " " + sp.n)}</text>
   </g>`);
+}
+// Close-up: a magnified square around the selected water point, drawn in the opposite corner.
+const ZOOM_HALF = 26; // map units either side of the point (the main map is 600 wide)
+function renderZoom(all) {
+  const z = $("#zoom"), sp = BY[sel];
+  if (!sp || sp.la == null || !proj) { z.setAttribute("hidden", ""); return; }
+  const [cx, cy] = proj.f(sp), h = ZOOM_HALF, k = h / 115; // k: map units per close-up pixel (about 230 px across)
+  z.removeAttribute("hidden");
+  z.setAttribute("viewBox", `${(cx - h).toFixed(1)} ${(cy - h).toFixed(1)} ${2 * h} ${2 * h}`);
+  z.className.baseVal = "zoom " + (cx > proj.W * 0.55 && cy < proj.H * 0.45 ? "bl" : "tr");
+  const near = all.filter(x => x.p.la != null).map(x => ({ ...x, xy: proj.f(x.p) })).filter(x => Math.abs(x.xy[0] - cx) < h && Math.abs(x.xy[1] - cy) < h);
+  const label = (x, y, t, bold) => `<text x="${(x + 7 * k).toFixed(2)}" y="${(y + 3.5 * k).toFixed(2)}" font-size="${(bold ? 11 : 9.5) * k}" font-weight="${bold ? 700 : 500}" fill="var(--ink)" stroke="var(--panel)" stroke-width="${3 * k}" paint-order="stroke">${esc(t)}</text>`;
+  const dots = near.filter(x => x.p.id !== sel).map(({ p, v, xy: [x, y] }) =>
+    `<circle data-id="${p.id}" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${(v.nw ? 5 : 4) * k}" fill="var(${bandVar(v.band)})" ${v.nw ? `stroke="var(--ink)" stroke-width="${1.2 * k}"` : ""} style="cursor:pointer"><title>${esc(p.n)} · ${v.score}</title></circle>` +
+    (near.length <= 24 ? label(x, y, short(p.id), false) : "")).join("");
+  const sv = view(sp), towns = MAP ? MAP.towns.map(t => ({ t, xy: proj.f(t) })).filter(o => Math.abs(o.xy[0] - cx) < h && Math.abs(o.xy[1] - cy) < h) : [];
+  z.innerHTML = withBase("").replace('<g pointer-events="none">', '<g class="base" pointer-events="none">') +
+    towns.map(o => label(o.xy[0], o.xy[1], o.t.name, true)).join("") + dots +
+    `<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${11 * k}" fill="none" stroke="var(--accent)" stroke-width="${2.5 * k}"/>
+     <circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${6.5 * k}" fill="var(${bandVar(sv.band)})" stroke="var(--ink)" stroke-width="${1.6 * k}"/>` +
+    `<text x="${cx.toFixed(2)}" y="${(cy + 22 * k).toFixed(2)}" text-anchor="middle" font-size="${11 * k}" font-weight="700" fill="var(--ink)" stroke="var(--panel)" stroke-width="${3 * k}" paint-order="stroke">${esc(short(sp.id) + " " + (sp.n.length > 22 ? sp.n.slice(0, 21) + "…" : sp.n))}</text>` +
+    `<text x="${(cx - h + 6 * k).toFixed(2)}" y="${(cy + h - 6 * k).toFixed(2)}" font-size="${9 * k}" fill="var(--ink3)">Close-up · ${near.length} water point${near.length === 1 ? "" : "s"} nearby</text>`;
 }
 function withBase(x) { return baseSVG.replace('style="display:none"', showFlood ? "" : 'style="display:none"') + x; }
 function detailHTML() {
@@ -564,6 +590,7 @@ function renderOfficer() {
   const rows = filtered(all);
   $("#list").innerHTML = listHTML(rows);
   $("#map").innerHTML = mapHTML(all);
+  renderZoom(all);
   $("#detail").innerHTML = detailHTML();
 }
 async function decide(kind, approvalId) {
@@ -879,6 +906,7 @@ if (!MAP) document.querySelectorAll(".maplegend").forEach(el => el.remove());
 $("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer"); renderOfficer(); });
 $("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); });
 $("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); } });
+$("#zoom").addEventListener("click", e => { const c = e.target.closest("circle[data-id]"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
 $("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
 $("#q").addEventListener("input", () => { shown = 60; renderOfficer(); });
 $("#sub").addEventListener("change", () => { shown = 60; renderOfficer(); });
