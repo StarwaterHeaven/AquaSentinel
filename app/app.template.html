@@ -250,23 +250,26 @@ const when = t => { const d = new Date(t); return d.toLocaleTimeString([], { hou
 function view(p) {
   const ov = S.status[p.id];
   let st = p.st, age = p.age, src = p.ss, D = p.D, conf;
-  if (ov && ov.status) { st = ov.status; age = 0; src = "committee SMS (live)"; }
+  let E = p.E;
+  if (ov && ov.status) { st = ov.status; age = ov.at ? Math.max(0, Math.round((Date.now() - ov.at) / 864e5)) : 0; src = ov.src === "imported SMS" ? "imported SMS" : "committee SMS (live)"; }
   if (ov && ov.dirty) D = Math.min(D, 6.7);
+  if (ov && ov.status === "Seasonal (dry)") E = Math.max(0, E - 8); // a dry report in the last year, as in score.py
   let A = st === "Functional" ? 20 : st === "Seasonal (dry)" ? 8.6 : 0;
   if (st === "Functional" && age > 365) A = 14.3;
   if (st === "Functional" && age > 730) A = 10.3;
-  if (ov) conf = "High"; else conf = age <= 180 ? "High" : (age <= 540 || p.m12 > 0) ? "Medium" : "Low";
-  const dims = [A, p.B, p.C, D, p.E];
+  if (ov && ov.status) conf = age <= 180 ? "High" : "Medium"; else conf = age <= 180 ? "High" : (age <= 540 || p.m12 > 0) ? "Medium" : "Low";
+  const fixed = !!(ov && ov.status === "Functional");
+  const dims = [A, p.B, p.C, D, E];
   const score = Math.round(dims.reduce((a, b) => a + b, 0));
   const band = score < 40 ? "Critical" : score < 60 ? "At risk" : score < 80 ? "Watch" : "Good";
   const nw = st !== "Functional";
   const acts = [];
   if (nw && p.oj === 0) acts.push({ k: "dispatch", t: `Send mechanic ${p.mech || "(none assigned)"}${p.tw != null ? ` (about ${p.tw} min in the wet season)` : ""}` });
-  if (p.oj > 0) acts.push({ k: "chase", t: `Follow up the open job card (${p.oj} open)` });
+  if (p.oj > 0 && !fixed) acts.push({ k: "chase", t: `Follow up the open job card (${p.oj} open)` });
   if (D <= 6.7) acts.push({ k: "boil", t: "Boil-water advice now, then an E. coli retest" });
   if (conf === "Low") acts.push({ k: "inspect", t: "Inspect: no fresh evidence for this point" });
   if (p.C <= 5.3 && p.tm) acts.push({ k: "committee", t: "Committee support on tariff and savings" });
-  if (p.E <= 10.7) acts.push({ k: "dry", t: "Watch for seasonal drying" });
+  if (E <= 10.7) acts.push({ k: "dry", t: "Watch for seasonal drying" });
   if (p.gi && p.bk >= 4) acts.push({ k: "main", t: "Plan rising-main replacement (GI pipe, frequent breakdowns)" });
   return { st, age, src, conf, dims, score, band, nw, acts, dirty: !!(ov && ov.dirty) };
 }
@@ -515,22 +518,27 @@ function renderPhone() {
   $("#log").innerHTML = ev.length ? ev.map(m => `<li><b>${esc(m.result)}</b><span>“${esc(m.text)}” from ${esc((PHONES.find(x => x.id === m.phone) || {}).label || (m.phone === "import" ? "imported message" : m.phone))}</span><small>${when(m.at)}</small></li>`).join("") : `<li><span class="note">Reports from committees will appear here with what the system did with each one.</span></li>`;
 }
 function parse(text) {
-  const t = text.toLowerCase();
-  const code = (text.match(/\b(\d{4})\b/) || [])[1];
+  const t = text.toLowerCase().replace(/[’`]/g, "'");
+  const codes = t.match(/\b\d{4}\b/g) || [];
+  const code = codes.find(c => BY["KJ-WP-" + c]); // a known code always wins
+  const bad = code ? null : codes[0] || null;     // a 4-digit number that is not a water point
   let kind = null;
   if (/\b(dirty|chafu|kutu|rust|smell|colou?r)\b/.test(t)) kind = "dirty";
-  else if (/\b(dry|kimekauka|imekauka)\b/.test(t)) kind = "dry";
-  else if (/\b(broken|broke|mbovu|imeharibika|not working|no water|hakuna maji)\b/.test(t)) kind = "broken";
-  else if (/\b(ok|sawa|working|fixed|imetengenezwa)\b/.test(t)) kind = "ok";
-  return { code, kind };
+  else if (/\b(dry|kimekauka|imekauka|kavu)\b/.test(t)) kind = "dry";
+  // negations first, so "isn't working" or "not fixed" is never read as OK
+  else if (/\b(broken|broke|mbovu|imeharibika|imekufa|haitoi|haifanyi kazi|haijatengenezwa|no water|hakuna maji)\b/.test(t)
+    || /\b(not|isn't|aren't|never|no longer|stopped|hasn't|haven't)\b(\s+\w+){0,2}\s+(working|fixed|ok|okay|repaired)\b/.test(t)) kind = "broken";
+  else if (/\b(ok|okay|sawa|working|fixed|imetengenezwa|inafanya kazi)\b/.test(t)) kind = "ok";
+  return { code, bad, kind };
 }
 async function send(text) {
   text = text.trim(); if (!text) return;
   const ph = PHONES.find(x => x.id === ident), at = Date.now();
-  const { code, kind } = parse(text);
-  let wp = code && BY["KJ-WP-" + code] ? "KJ-WP-" + code : null, reply, result;
-  if (!wp && ph.wps.length === 1) wp = ph.wps[0];
-  if (!wp && ph.wps.length > 1) { reply = `This number covers more than one water point. Reply with the number first, for example ${short(ph.wps[0])} ${kind ? kind.toUpperCase() : "BROKEN"} or ${short(ph.wps[1])} ${kind ? kind.toUpperCase() : "BROKEN"}.`; result = "Asked which water point"; }
+  const { code, bad, kind } = parse(text);
+  let wp = code ? "KJ-WP-" + code : null, reply, result;
+  if (!wp && !bad && ph.wps.length === 1) wp = ph.wps[0];
+  if (bad) { reply = `Thank you. We do not have a water point numbered ${bad}. Please check the 4-digit number painted on the pump and send it again.`; result = `Unknown water point number ${bad}`; }
+  else if (!wp && ph.wps.length > 1) { reply = `This number covers more than one water point. Reply with the number first, for example ${short(ph.wps[0])} ${kind ? kind.toUpperCase() : "BROKEN"} or ${short(ph.wps[1])} ${kind ? kind.toUpperCase() : "BROKEN"}.`; result = "Asked which water point"; }
   else if (!wp) { reply = "Thank you. Please add the 4-digit number painted on the pump, for example 0631 BROKEN."; result = "Asked for the water point number"; }
   else if (!kind) { reply = `Thank you. For ${short(wp)} please reply OK, BROKEN, DRY or DIRTY.`; result = `Unclear report for ${short(wp)}`; }
   else {
@@ -585,17 +593,19 @@ function resolveText(text) {
   return best.ids.length === 1 ? { wp: best.ids[0], how: "village" } : { wp: null, how: "ambiguous", ids: best.ids };
 }
 async function importMessages(file) {
-  const rows = parseCSV(await file.text());
-  let applied = 0, unclear = 0, unmatched = 0, ambiguous = 0;
+  const stamp = r => Date.parse(r.received_at || r.timestamp || "") || Date.now();
+  const rows = parseCSV(await file.text()).filter(r => (r.text || r.message || r.body || "").trim()).sort((a, b) => stamp(a) - stamp(b)); // oldest first, so the newest report wins
+  let applied = 0, unclear = 0, unmatched = 0, ambiguous = 0, stale = 0;
   for (const r of rows) {
-    const text = r.text || r.message || r.body || ""; if (!text.trim()) continue;
-    const at = Date.parse(r.received_at || r.timestamp || "") || Date.now();
+    const text = r.text || r.message || r.body || "";
+    const at = stamp(r);
     let { kind } = parse(text);
     if (!kind && /flood|mafuriko|maji ya mto|muddy|matope/i.test(text)) kind = "dirty";
     const res = resolveText(text);
     let result;
     if (!res.wp) { if (res.how === "ambiguous") { ambiguous++; result = `Needs the officer: village has ${res.ids.length} water points (${res.ids.map(short).join(", ")})`; } else { unmatched++; result = "Could not match a water point"; } }
     else if (!kind) { unclear++; result = `${short(res.wp)}: message read, no status change`; }
+    else if ((S.status[res.wp] || {}).at > at) { stale++; result = `${short(res.wp)}: older than the report already held, kept the newer one`; }
     else {
       const cur = S.status[res.wp] || {}, next = { ...cur, at, src: "imported SMS" };
       if (kind === "ok") { next.status = "Functional"; next.dirty = false; }
@@ -609,7 +619,7 @@ async function importMessages(file) {
   }
   await meter(`Imported ${rows.length} messages`, "", rows.length, PRICE.call);
   filter = "all"; shown = 60; render();
-  toast(`${rows.length} messages read: ${applied} updated water points, ${ambiguous} need the officer, ${unclear} unclear, ${unmatched} unmatched.`);
+  toast(`${rows.length} messages read: ${applied} updated water points, ${ambiguous} need the officer, ${unclear} unclear, ${unmatched} unmatched${stale ? `, ${stale} older than what we already hold` : ""}.`);
 }
 
 // ---------- receipt
