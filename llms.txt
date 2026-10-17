@@ -42,6 +42,10 @@ Backtest (`scoring/backtest.py`, `docs/BACKTEST.md`): scored blind with records 
 
 Replies: OK (working), BROKEN (not working), DRY, DIRTY (quality). A 4-digit water-point code in the text (e.g. `0631 BROKEN`) always wins. Otherwise a phone registered to exactly one point is matched; a phone covering several points, or an unregistered one, is asked for the code. Bulk import of message CSVs (e.g. the flood inject) matches by ID, 4-digit code or village name; villages with several points go to the officer.
 
+## WhatsApp via Torque
+
+Torque (the team's Muse agent with WhatsApp) is AquaSentinel's WhatsApp contact. It submits committee reports to the report store (`torque/worker/`, Cloudflare Worker `aquasentinel-reports`) by webhook or by buying the Qatom report item ($0.001). The store reads the water point (number, ID or village, fuzzy) and the status (English and Swahili words), and returns a reply or an ask-back. The console polls `https://aquasentinel-reports.hassan-khan-cd6.workers.dev/reports` every 4 seconds and applies accepted reports. Write URLs carry a secret path that is never committed. Details and the instructions to paste into Torque: `docs/TORQUE.md`. Rebuild the Worker's point index with `python torque/gen_points.py`.
+
 ## Agentic Commerce Infra (Qatom)
 
 - Catalog item 212, "AquaSentinel: sponsor a Kijana water point (hackathon demo)", $1, inputs `wp_id` (or `DISTRICT`) and `sponsor`. The item's own wallet is the district escrow.
@@ -73,6 +77,7 @@ Open `out/site/index.html` (or the public site) in two windows of the same brows
 - [docs/CONTRACT.md](docs/CONTRACT.md): the water-point fields, the live-state collections, SMS words and prices that every part agrees on
 - [docs/TASKS.md](docs/TASKS.md): who does what today, with briefs to paste into an AI
 - [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md): the 5-minute pitch, minute by minute, and the demo click path
+- [docs/TORQUE.md](docs/TORQUE.md): Torque, the WhatsApp contact, and the report store it submits to
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): parties, data flows and money flows (discussion draft)
 - [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf): the deck; slides 1–6 are the pitch, 7–21 the appendix
 - [scoring/score.py](scoring/score.py): the score engine

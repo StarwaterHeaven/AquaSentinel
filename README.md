@@ -8,7 +8,7 @@ AquaSentinel gives every water point in Kijana District a score out of 100, puts
 
 **Live demo:** https://starwaterheaven.github.io/AquaSentinel/ (officer view; add `#phone` for the committee phone in a second window, `#funding` for funding and proof). Republish with `scripts/publish_pages.sh`.
 
-**For AI assistants:** [llms.txt](llms.txt) · **Pitch script:** [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) · **Architecture (discussion draft):** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **Backtest:** [docs/BACKTEST.md](docs/BACKTEST.md) · **Pump plate:** [docs/plate.svg](docs/plate.svg) · **Pitch deck (PDF):** [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf)
+**For AI assistants:** [llms.txt](llms.txt) · **Pitch script:** [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) · **Architecture (discussion draft):** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **Backtest:** [docs/BACKTEST.md](docs/BACKTEST.md) · **WhatsApp via Torque:** [docs/TORQUE.md](docs/TORQUE.md) · **Pump plate:** [docs/plate.svg](docs/plate.svg) · **Pitch deck (PDF):** [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf)
 
 ## How the score works
 
@@ -42,6 +42,7 @@ The built page works offline in one browser tab. The published demo shares live 
 |---|---|
 | `scoring/` | Score engine and export |
 | `app/` | Console app: officer view, committee phone, receipt |
+| `torque/` | Report store (Cloudflare Worker) that Torque, our WhatsApp agent, submits committee reports to |
 | `docs/CONTRACT.md` | The fields every part agrees on. Read this before changing anything shared. |
 | `docs/TASKS.md` | Who does what today, with a brief you can paste into your own AI |
 | `data/` | Local only. The data pack is never committed. |

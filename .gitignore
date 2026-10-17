@@ -6,3 +6,9 @@ out/
 __pycache__/
 .DS_Store
 .venv/
+
+# generated from out/points.json
+torque/worker/src/points.mjs
+torque/worker/node_modules/
+torque/**/SECRET-*
+torque/**/aqs-deploy-result-*

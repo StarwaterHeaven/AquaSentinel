@@ -181,7 +181,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
       </div>
     </div>
     <div class="panel">
-      <div class="ph"><h2>What the system did</h2></div>
+      <div class="ph"><h2>What the system did</h2><span class="note" id="tqstat"></span></div>
       <ul class="log" id="log"></ul>
     </div>
   </div>
@@ -512,7 +512,7 @@ function renderPhone() {
   $("#thread").innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${m.dir}">${esc(m.text)}<small>${when(m.at)}</small></div>`).join("") : `<div class="msg in">No messages yet. Approve an alert in the officer view, or send a report.</div>`;
   $("#thread").scrollTop = 1e6;
   const ev = Object.values(S.inbox).sort((a, b) => b.at - a.at).slice(0, 30);
-  $("#log").innerHTML = ev.length ? ev.map(m => `<li><b>${esc(m.result)}</b><span>“${esc(m.text)}” from ${esc((PHONES.find(x => x.id === m.phone) || {}).label || (m.phone === "import" ? "imported message" : m.phone))}</span><small>${when(m.at)}</small></li>`).join("") : `<li><span class="note">Reports from committees will appear here with what the system did with each one.</span></li>`;
+  $("#log").innerHTML = ev.length ? ev.map(m => `<li><b>${esc(m.result)}</b><span>“${esc(m.text)}” from ${esc((PHONES.find(x => x.id === m.phone) || {}).label || m.who || (m.phone === "import" ? "imported message" : m.phone))}</span><small>${when(m.at)}</small></li>`).join("") : `<li><span class="note">Reports from committees will appear here with what the system did with each one.</span></li>`;
 }
 function parse(text) {
   const t = text.toLowerCase();
@@ -551,6 +551,50 @@ async function send(text) {
   await meter("Inbound SMS (reverse-billed)", wp, 1, PRICE.sms);
   await meter("Reply SMS", wp, 1, PRICE.sms);
   if (wp && kind) await meter("Rescore water point", wp, 1, PRICE.call);
+}
+
+// ---------- WhatsApp reports via Torque (Muse agent), read from the report store
+const REPORTS_URL = __REPORTS_URL__;
+const TQ_KEY = "aqs-tq-since";
+let tqSince = 0, tqState = "off", tqBusy = false;
+try { tqSince = +localStorage.getItem(TQ_KEY) || 0; } catch (e) {}
+async function pollTorque() {
+  if (!REPORTS_URL || tqBusy || document.hidden) return;
+  tqBusy = true;
+  try {
+    const r = await fetch(REPORTS_URL + "/reports?since=" + tqSince, { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    const { reports = [] } = await r.json();
+    tqState = "on";
+    for (const x of reports) {
+      const key = "tq-" + x.id;
+      if (S.inbox[key] || x.at <= tqSince) continue;
+      const who = "WhatsApp via Torque" + (x.reporter ? ` (${x.reporter})` : "");
+      let result;
+      if (x.accepted && x.wp_id && BY[x.wp_id]) {
+        const kind = { OK: "ok", BROKEN: "broken", DRY: "dry", DIRTY: "dirty" }[x.status];
+        const cur = S.status[x.wp_id] || {};
+        if (!cur.at || x.at >= cur.at) {
+          const next = { ...cur, at: x.at, src: "WhatsApp via Torque" };
+          if (kind === "ok") { next.status = "Functional"; next.dirty = false; }
+          if (kind === "broken") next.status = "Non-functional";
+          if (kind === "dry") next.status = "Seasonal (dry)";
+          if (kind === "dirty") next.dirty = true;
+          await put("status", x.wp_id, next);
+        }
+        const v = view(BY[x.wp_id]);
+        result = `${short(x.wp_id)} ${BY[x.wp_id].n}: ${({ ok: "working", broken: "not working", dry: "dry", dirty: "dirty water" })[kind]}. New score ${v.score}/100${v.nw ? ", flagged Not working" : ""}.`;
+      } else {
+        result = `Torque asked back for ${(x.need || []).map(n => n === "wp_id" ? "the water point number" : "the status").join(" and ")}`;
+      }
+      await put("inbox", key, { phone: "torque", who, text: x.message || [x.wp_id && short(x.wp_id), x.status].filter(Boolean).join(" "), wp: x.wp_id || "", result, at: x.at, via: x.via || "" });
+      await put("ledger", key, { item: `WhatsApp report via Torque (${x.via || "webhook"})`, wp: x.wp_id || "", units: 1, cost: PRICE.call, at: x.at, proof: x.via === "Qatom item" ? "Paid per report on Qatom" : "" });
+      if (x.accepted) toast("WhatsApp via Torque: " + result);
+    }
+  } catch (e) { tqState = "down"; }
+  tqBusy = false;
+  const el = $("#tqstat");
+  if (el) el.textContent = tqState === "on" ? "Torque on WhatsApp: listening for committee reports" : tqState === "down" ? "Torque on WhatsApp: report store not reachable" : "";
 }
 
 // ---------- bulk import of inbound messages (e.g. the 1pm flood inject, once released)
@@ -670,6 +714,7 @@ $("#sub").insertAdjacentHTML("beforeend", [...new Set(PTS.map(p => p.sc))].sort(
 try { const v = localStorage.getItem("as-view"); if (v && document.getElementById("v-" + v)) show(v); } catch (e) {}
 const hv = location.hash.slice(1); if (hv && document.getElementById("v-" + hv)) show(hv);
 render();
+if (REPORTS_URL) { setTimeout(pollTorque, 3000); setInterval(pollTorque, 4000); }
 
 (async () => {
   try { mcp = window.claude && claude.use ? await claude.use("mcp") : null; } catch (e) { mcp = null; }
@@ -682,7 +727,7 @@ render();
     try { chan = new BroadcastChannel("aqs-demo"); chan.onmessage = ev => { const x = ev.data || {}; for (const k of Object.keys(S)) S[k] = x[k] || {}; render(); }; } catch (e) { chan = null; }
     window.addEventListener("storage", ev => { if (ev.key === LS_KEY && loadLocal()) render(); });
     $("#synctext").innerHTML = `Demo mode: windows on this computer stay in sync · <button class="btn" id="reset" type="button" style="padding:3px 8px;font-size:12px">Reset demo</button>`;
-    $("#reset").addEventListener("click", () => { seedState(); pending = null; saveLocal(); render(); toast("Demo reset to the starting state."); });
+    $("#reset").addEventListener("click", () => { seedState(); pending = null; tqSince = Date.now(); try { localStorage.setItem(TQ_KEY, String(tqSince)); } catch (e) {} saveLocal(); render(); toast("Demo reset to the starting state."); });
     render(); return;
   }
   $("#syncdot").classList.add("on"); $("#synctext").textContent = "Live: shared with everyone on this page";
