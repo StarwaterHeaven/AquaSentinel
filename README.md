@@ -8,7 +8,7 @@ AquaSentinel gives every water point in Kijana District a score out of 100, puts
 
 **Live demo:** https://starwaterheaven.github.io/AquaSentinel/ (officer view; add `#phone` for the committee phone in a second window, `#funding` for funding and proof). Republish with `scripts/publish_pages.sh`.
 
-**For AI assistants:** [llms.txt](llms.txt) · **Pitch script:** [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) · **Architecture (discussion draft):** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **Pitch deck (PDF):** [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf)
+**For AI assistants:** [llms.txt](llms.txt) · **Pitch script:** [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) · **Architecture (discussion draft):** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **Backtest:** [docs/BACKTEST.md](docs/BACKTEST.md) · **Pump plate:** [docs/plate.svg](docs/plate.svg) · **Pitch deck (PDF):** [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf)
 
 ## How the score works
 

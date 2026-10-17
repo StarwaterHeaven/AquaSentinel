@@ -34,7 +34,9 @@ Five dimensions, 20 points each, total out of 100:
 
 Bands: 80+ Good, 60–79 Watch, 40–59 At risk, under 40 Critical. Rule on top: any point that is not working is flagged "Not working" and listed first, whatever its score. Each point also carries a confidence label (High, Medium, Low); Low = "silent" (no fresh evidence) and goes on the inspection list. Suggested actions come from simple rules (send the nearest mechanic, chase an open job card, boil-water advice and retest, inspect, committee support, seasonal-dry watch, plan a rising-main swap).
 
-Current results on the data pack: 1,078 points; 767 working, 311 not working; 18 Critical, 374 At risk; 489 silent. Functionality: register 79%, newest evidence 71%, case pack working figure about 65%; we treat 71% as a ceiling.
+Current results on the data pack (score v0.4): 1,078 points; 755 working, 323 not working; 20 Critical, 377 At risk; 484 silent. Functionality: register 79%, newest evidence 70%, case pack working figure about 65%; we treat 70% as a ceiling.
+
+Backtest (`scoring/backtest.py`, `docs/BACKTEST.md`): scored blind with records before 1 Jan 2024. Against the 2024 inspection round (624 points, 21% non-functional), 47% of flagged points were found broken (more than twice the base rate) and the flagged list caught 72% of broken pumps. Against the Aug 2025 survey (124 points, 28% non-functional): 47% precision, 49% recall. Silent points held 52–57% of the failures the flag missed or did not see, which is why they go on the inspection list.
 
 ## SMS
 
@@ -82,11 +84,11 @@ Open `out/site/index.html` (or the public site) in two windows of the same brows
 
 ## Most useful contributions before 16:00
 
-1. Backtest (Vladyslav): score with data before 2024 and compare with the 2025 survey and 2024 inspections; report how many flagged points were found broken. Write `scoring/backtest.py` and `out/backtest.md`; put the headline number in the pull request.
-2. Message reading (Vladyslav): measure `cat()` and `resolve()` in `scoring/score.py` and the app's `parse()` / `resolveText()` against the 450 hand-labelled messages; improve keywords and village-name matching without changing function names.
+1. Backtest: done (`scoring/backtest.py`, by Vladyslav; real-pack results in `docs/BACKTEST.md`). Next: try weights that raise precision without losing recall, and report both numbers.
+2. Message reading (Vladyslav): `scoring/score.py` v0.4 has the improved `cat()` and `resolve()` (weighted keywords, bare 4-digit codes, fuzzy village names). Port the same rules to the app's `parse()` and `resolveText()`, and commit `scoring/eval_messages.py` run on the real pack.
 3. Flood inject (Vladyslav, after release): import it in the console and list the affected water points.
 4. SMS wording and flow (Ruth): test every reply from each demo phone on the public site; propose clearer text (search for `WATER ALERT` and `Thank you` in the template).
-5. Pump plate (Ruth): one image, `docs/plate.png` or `docs/plate.svg`, with the 4-digit number and how to text it.
+5. Pump plate: done (`docs/plate.svg`).
 6. Silence list (Ruth): five bullets for a slide on who the silent list protects (no-signal settlements, Mlimani, Bibi Amina).
 
 ## Optional

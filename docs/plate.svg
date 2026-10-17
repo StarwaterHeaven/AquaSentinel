@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Water point 0631. Text 0631 BROKEN to the Kijana Water Line.">
+  <title>Water point plate: 0631</title>
+  <style>
+    text { font-family: "Helvetica Neue", Arial, sans-serif; fill: #0b2a4a; }
+    .w { fill: #ffffff; }
+  </style>
+  <rect x="0" y="0" width="1200" height="800" fill="#ffffff"/>
+  <rect x="20" y="20" width="1160" height="760" rx="36" fill="#ffffff" stroke="#0b2a4a" stroke-width="12"/>
+
+  <!-- header band -->
+  <rect x="32" y="32" width="1136" height="120" rx="26" fill="#0b2a4a"/>
+  <text class="w" x="600" y="112" font-size="64" font-weight="700" text-anchor="middle" letter-spacing="6" style="fill:#ffffff">WATER POINT</text>
+
+  <!-- the number: change this one element per pump -->
+  <text x="600" y="365" font-size="240" font-weight="800" text-anchor="middle" letter-spacing="14">0631</text>
+
+  <!-- instruction -->
+  <rect x="60" y="395" width="1080" height="200" rx="22" fill="#e6f1fb" stroke="#0b2a4a" stroke-width="5"/>
+  <text x="600" y="445" font-size="38" font-weight="600" text-anchor="middle">Something wrong? Send a text:</text>
+  <text x="600" y="520" font-size="72" font-weight="800" text-anchor="middle">0631 BROKEN</text>
+  <text x="600" y="570" font-size="36" text-anchor="middle">to the Kijana Water Line</text>
+
+  <!-- reply codes -->
+  <g font-size="30" text-anchor="middle">
+    <text x="210" y="660" font-weight="800" font-size="40">OK</text>
+    <text x="210" y="700">working</text>
+    <text x="210" y="734" font-size="24">sawa</text>
+
+    <text x="470" y="660" font-weight="800" font-size="40">BROKEN</text>
+    <text x="470" y="700">not working</text>
+    <text x="470" y="734" font-size="24">mbovu</text>
+
+    <text x="740" y="660" font-weight="800" font-size="40">DRY</text>
+    <text x="740" y="700">dried up</text>
+    <text x="740" y="734" font-size="24">kimekauka</text>
+
+    <text x="1000" y="660" font-weight="800" font-size="40">DIRTY</text>
+    <text x="1000" y="700">bad water</text>
+    <text x="1000" y="734" font-size="24">chafu</text>
+  </g>
+
+  <text x="600" y="768" font-size="22" text-anchor="middle" style="fill:#44607e">AquaSentinel · Kijana District</text>
+</svg>
