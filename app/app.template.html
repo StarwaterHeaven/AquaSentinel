@@ -639,7 +639,7 @@ async function pollTorque() {
     for (const x of reports) {
       const key = "tq-" + x.id;
       if (S.inbox[key] || x.at <= tqSince) continue;
-      const ch = x.channel || "WhatsApp", who = `${ch} via Torque` + (x.reporter ? ` (${x.reporter})` : "");
+      const hint = ((x.reporter || "") + " " + (x.via || "")).toLowerCase(), ch = x.channel && x.channel !== "WhatsApp" ? x.channel : /imessage/.test(hint) ? "iMessage" : /\b(sms|text)\b/.test(hint) ? "SMS" : (x.channel || "WhatsApp"), who = `${ch} via Torque` + (x.reporter ? ` (${x.reporter})` : "");
       let result;
       if (x.accepted && x.wp_id && BY[x.wp_id]) {
         const kind = { OK: "ok", BROKEN: "broken", DRY: "dry", DIRTY: "dirty" }[x.status];
