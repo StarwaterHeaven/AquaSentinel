@@ -1,6 +1,6 @@
-# Torque: AquaSentinel's WhatsApp contact
+# Torque: AquaSentinel's WhatsApp and text contact
 
-Torque is the team's Muse agent with WhatsApp. In the demo it is the number a water committee messages. Torque reads the report, asks back when something is missing, and submits complete reports to AquaSentinel. The officer console shows each report within a few seconds and rescores the water point.
+Torque is the team's Muse agent. Committees can reach it on WhatsApp or by text (iMessage/SMS through Inkbox: first send `connect @torque` to +1 (557) 234-1193). In the demo it is the number a water committee messages. Torque reads the report, asks back when something is missing, and submits complete reports to AquaSentinel. The officer console shows each report within a few seconds and rescores the water point.
 
 > Synthetic hackathon scenario. Kijana District is fictional. Torque must never say that water is safe to drink.
 
@@ -30,6 +30,7 @@ JSON body, every field optional:
 | `message` | `0631 pump imeharibika` | The sender's WhatsApp text, as sent |
 | `reporter` | `Olagoni committee chair` | How the console labels the sender |
 | `phone` | `+254700000631` | Stored as the last 3 digits only |
+| `channel` | `WhatsApp`, `iMessage`, `SMS` | Shown on the officer's screen; default WhatsApp |
 
 ## What comes back
 
@@ -58,7 +59,7 @@ Your job:
 
 ## Demo script (about 30 seconds)
 
-1. On a phone, WhatsApp Torque: "Olagoni pump imeharibika tena".
+1. On a phone, WhatsApp Torque, or text it (after `connect @torque` to +1 (557) 234-1193): "Olagoni pump imeharibika tena".
 2. Torque asks which of the 4 Olagoni water points (0631, 0681, 0609, 0682).
 3. Reply "0631".
 4. Torque confirms. In the officer console, Olagoni 0631 shows the WhatsApp report and its new score, and the Committee phone tab's log shows "WhatsApp via Torque".

@@ -40,6 +40,10 @@ Presenter: **Vladyslav**. Committee phone: **Ruth**, if she is there. Otherwise 
 6. Optional, if the flood CSV is there: **Import messages (CSV)** in window A. "Here are today's flood reports: each matched to a water point and rescored, and the ones we can't place go to the officer."
 7. Open **Funding and proof** (tab in window A). Show the escrows table and the **Committee** proof for 0631: "$1 from a sponsor this morning, live on Qatom, transaction 91ca3e13. The sponsor, the officer and the committee each see where it went."
 
+## Optional: a real phone via Torque (about 30 seconds)
+
+Torque, our agent, answers committees on WhatsApp and by text. To text it, send `connect @torque` once to +1 (557) 234-1193 (iMessage). Then send "Olagoni pump imeharibika". Torque asks which of the 4 Olagoni pumps; reply "0631". Within seconds window A shows the red bar and the report "via Torque". Say: "Committees use the phone they already have; our agent asks back when a report is incomplete, and nothing reaches the pump list until it is clear."
+
 ## If a judge asks
 
 - **"Is the payment real?"** Yes: two live Qatom transactions today, 91ca3e13 ($1 sponsorship, item 212) and 9d919d86 ($0.02 officer-approved alert, item 213). The public page replays them; new payments on this page are simulated and labelled.

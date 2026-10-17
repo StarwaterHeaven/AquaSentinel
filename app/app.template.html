@@ -618,13 +618,13 @@ async function pollTorque() {
     for (const x of reports) {
       const key = "tq-" + x.id;
       if (S.inbox[key] || x.at <= tqSince) continue;
-      const who = "WhatsApp via Torque" + (x.reporter ? ` (${x.reporter})` : "");
+      const ch = x.channel || "WhatsApp", who = `${ch} via Torque` + (x.reporter ? ` (${x.reporter})` : "");
       let result;
       if (x.accepted && x.wp_id && BY[x.wp_id]) {
         const kind = { OK: "ok", BROKEN: "broken", DRY: "dry", DIRTY: "dirty" }[x.status];
         const cur = S.status[x.wp_id] || {};
         if (!cur.at || x.at >= cur.at) {
-          const next = { ...cur, at: x.at, src: "WhatsApp via Torque" };
+          const next = { ...cur, at: x.at, src: `${ch} via Torque` };
           if (kind === "ok") { next.status = "Functional"; next.dirty = false; }
           if (kind === "broken") next.status = "Non-functional";
           if (kind === "dry") next.status = "Seasonal (dry)";
@@ -637,13 +637,13 @@ async function pollTorque() {
         result = `Torque asked back for ${(x.need || []).map(n => n === "wp_id" ? "the water point number" : "the status").join(" and ")}`;
       }
       await put("inbox", key, { phone: "torque", who, text: x.message || [x.wp_id && short(x.wp_id), x.status].filter(Boolean).join(" "), wp: x.wp_id || "", result, at: x.at, via: x.via || "" });
-      await put("ledger", key, { item: `WhatsApp report via Torque (${x.via || "webhook"})`, wp: x.wp_id || "", units: 1, cost: PRICE.call, at: x.at, proof: x.via === "Qatom item" ? "Paid per report on Qatom" : "" });
-      if (x.accepted) toast("WhatsApp via Torque: " + result);
+      await put("ledger", key, { item: `${ch} report via Torque (${x.via || "webhook"})`, wp: x.wp_id || "", units: 1, cost: PRICE.call, at: x.at, proof: x.via === "Qatom item" ? "Paid per report on Qatom" : "" });
+      if (x.accepted) toast(`${ch} via Torque: ${result}`);
     }
   } catch (e) { tqState = "down"; }
   tqBusy = false;
   const el = $("#tqstat");
-  if (el) el.textContent = tqState === "on" ? "Torque on WhatsApp: listening for committee reports" : tqState === "down" ? "Torque on WhatsApp: report store not reachable" : "";
+  if (el) el.textContent = tqState === "on" ? "Torque (WhatsApp and text): listening for committee reports" : tqState === "down" ? "Torque: report store not reachable" : "";
 }
 
 // ---------- bulk import of inbound messages (e.g. the 1pm flood inject, once released)

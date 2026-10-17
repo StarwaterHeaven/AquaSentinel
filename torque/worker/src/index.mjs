@@ -10,7 +10,8 @@
 //   GET  /health
 //
 // Body (JSON, form or query): wp_id (KJ-WP-0631, 0631 or a village name), status
-// (OK, BROKEN, DRY, DIRTY, or words), message (the WhatsApp text), reporter, phone.
+// (OK, BROKEN, DRY, DIRTY, or words), message (the text as sent), reporter, phone,
+// channel (WhatsApp, iMessage or SMS; default WhatsApp).
 // A report needs a water point and a status. If either is missing the answer has
 // accepted:false, a `need` list and a `reply` for Torque to send back.
 // Synthetic scenario data: nothing here says water is safe to drink.
@@ -157,7 +158,7 @@ export default {
     const rec = {
       id: crypto.randomUUID(), at: Date.now(), accepted: a.accepted, wp_id: a.wp_id, name: a.name, status: a.status, need: a.need,
       message: String(input.message || input.text || "").slice(0, 280), reporter: String(input.reporter || "").slice(0, 80),
-      phone: phone ? "…" + phone.slice(-3) : "", channel: "WhatsApp", via: m[1] === "q" ? "Qatom item" : "Torque webhook", reply: a.reply
+      phone: phone ? "…" + phone.slice(-3) : "", channel: /imessage|sms|text/i.test(input.channel || "") ? (/imessage/i.test(input.channel) ? "iMessage" : "SMS") : "WhatsApp", via: m[1] === "q" ? "Qatom item" : "Torque webhook", reply: a.reply
     };
     await log.fetch(new Request("https://do/add", { method: "POST", body: JSON.stringify(rec) }));
     return json({ ...a, report_id: rec.id, received_at: new Date(rec.at).toISOString(), note: "Synthetic hackathon scenario. A report never shows that water is safe to drink." });
