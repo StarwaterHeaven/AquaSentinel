@@ -219,6 +219,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
       <form class="form" id="fundform">
         <label for="fwp">Where the money goes<select id="fwp"></select></label>
         <label for="fsp">Sponsor name on the proof<input id="fsp" value="Team Ocean demo sponsor" autocomplete="off"></label>
+        <label for="famt" id="famtrow">Demo amount<select id="famt"><option value="1">$1</option><option value="0.1">$0.10</option><option value="0.05">$0.05</option></select><span class="note">Simulated payments only. A live Qatom payment is always $1.</span></label>
         <div class="btns"><button class="btn pri" type="submit" id="fundbtn">Fund $1</button></div>
         <p class="note" id="fundnote">Each contribution lands in the district escrow or one water point's escrow, and every spend is drawn from it with a receipt.</p>
         <div id="fundpending"></div>
@@ -370,6 +371,8 @@ function renderFunding() {
   $("#livebadge").textContent = liveOn("fundItem") ? "Live on Qatom" : "Simulated";
   $("#fundnote").textContent = liveOn("fundItem") ? "Paid from your Qatom agent wallet after you approve in the TODAQ app. The receipt is tagged with the water point." : "Simulated in this view: the Qatom connector or the catalog items aren't available here. The record is kept the same way.";
   $("#fundpending").innerHTML = pendingHTML("fund");
+  $("#famtrow").hidden = liveOn("fundItem");
+  $("#fundbtn").textContent = "Fund " + usd(liveOn("fundItem") ? PRICE.fund : +$("#famt").value || PRICE.fund);
   const rows = Object.values(E).sort((a, b) => (a.k === "DISTRICT" ? -1 : b.k === "DISTRICT" ? 1 : b.in - a.in));
   $("#escrows").innerHTML = rows.map(e => `<tr><td>${esc(escName(e.k))}</td><td class="r">${usd(e.in)}</td><td class="r">${usd(e.spent)}</td><td class="r">${usd(e.in - e.spent)}</td></tr>`).join("");
   for (const b of document.querySelectorAll("#proofseg button")) b.setAttribute("aria-pressed", String(b.dataset.p === proofTab));
@@ -405,8 +408,9 @@ async function fund(approvalId) {
     if (r.state !== "paid") return;
     proof = r.proof; live = true;
   }
-  await put("funds", uid(), { wp, sponsor, amount: PRICE.fund, at: Date.now(), live, proof });
-  toast(`Payment received: ${usd(PRICE.fund)} from ${sponsor} to ${escName(wp)}.`);
+  const amount = live ? PRICE.fund : +$("#famt").value || PRICE.fund;
+  await put("funds", uid(), { wp, sponsor, amount, at: Date.now(), live, proof });
+  toast(`Payment received: ${usd(amount)} from ${sponsor} to ${escName(wp)}.`);
 }
 
 // ---------- officer view
@@ -722,7 +726,7 @@ function notes() {
     if (e.in <= 0) continue;
     const at = e.spends.length ? e.spends[e.spends.length - 1].at : 0;
     if (left < 0.0005) out.push({ id: "e-" + e.k, g: "money", go: "funding", at, t: `${escName(e.k)} is used up`, sub: `${usd(e.in)} in, ${usd(e.spent)} spent. Alerts and repairs now need new funding.` });
-    else if (left <= e.in * LOW_FUNDS) out.push({ id: "l-" + e.k + "-" + usd(left), g: "money", go: "funding", at, t: `${escName(e.k)} is running low`, sub: `${usd(left)} left of ${usd(e.in)}, enough for about ${Math.floor(left / PRICE.sms + 1e-9)} more SMS. Ask a sponsor to top it up.` });
+    else if (left <= e.in * LOW_FUNDS) out.push({ id: "l-" + e.k + "-" + usd(left), g: "money", go: "funding", at, t: `${escName(e.k)} is running low`, sub: `${usd(left)} left of ${usd(e.in)}, ${left < PRICE.sms ? "not enough for another SMS" : `enough for about ${Math.floor(left / PRICE.sms + 1e-9)} more SMS`}. Ask a sponsor to top it up.` });
   }
   if (pending) out.push({ id: "p", g: "money", go: pending.kind === "fund" ? "funding" : "", wp: pending.wp || "", at: Date.now(), pin: true, t: "Waiting for your approval in the TODAQ app", sub: pending.kind === "fund" ? "Sponsorship payment" : "Approved alert payment" });
   return out.sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.at - a.at).slice(0, 60);
@@ -749,6 +753,7 @@ function noteGo(id) {
   render();
   if (!n.go && n.wp) $("#detail").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
+$("#famt").addEventListener("change", renderFunding);
 $("#bell").addEventListener("click", () => { notesOpen = !notesOpen; renderNotes(); });
 $("#notes").addEventListener("click", e => {
   if (e.target.id === "readall") { notesSeen = Date.now(); try { localStorage.setItem(SEEN_KEY, String(notesSeen)); } catch (x) {} return renderNotes(); }
