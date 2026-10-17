@@ -183,7 +183,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
       <div class="ph"><h2>Water points</h2><div class="btns"><label class="btn" for="csvin" style="display:inline-flex;align-items:center">Import messages (CSV)</label><input id="csvin" type="file" accept=".csv,text/csv" hidden><button class="btn" id="scan">Run weekly scan</button></div></div>
       <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg></div>
       <div class="note" id="mapsel" style="padding:0 14px 6px"></div>
-      <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span></div>
+      <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span><span class="maplegend"><b style="color:var(--ochre)">━</b> Road (dashed: not passable when wet)</span><span class="maplegend"><b style="color:var(--watch)">━</b> River</span><span class="maplegend"><b style="color:var(--crit)">+</b> Health facility</span><label class="maplegend" style="cursor:pointer"><input type="checkbox" id="floodtog"> May 2024 flood extent</label></div>
       <div class="filters">
         <input id="q" type="search" placeholder="Search name or number" aria-label="Search water points">
         <select id="sub" aria-label="Sub-county"><option value="">All sub-counties</option></select>
@@ -255,6 +255,7 @@ const PHONES = [
   { id: "ph-0143", label: "Shared phone, Olandewe (two water points)", num: "+000 555 0143 (demo)", wps: ["KJ-WP-0069", "KJ-WP-0143"] },
   { id: "ph-anon", label: "Unregistered number", num: "+000 555 9999 (demo)", wps: [] }
 ];
+const MAP = __MAP__; // sub-counties, roads, rivers, 2024 flood, town, health facilities (synthetic)
 const SEED = __SEED__; // live Qatom records captured before the pitch (standalone build only)
 const S = { decisions: {}, status: {}, inbox: {}, outbox: {}, ledger: {}, funds: {} };
 const LS_KEY = "aqs-demo-state-v1";
@@ -486,13 +487,29 @@ function listHTML(rows) {
   }).join("") + (rows.length > shown ? `<button class="more" id="more">Show ${Math.min(60, rows.length - shown)} more of ${rows.length - shown}</button>` : "");
 }
 let proj = null;
+let showFlood = false, baseSVG = "";
 function mapHTML(all) {
   if (!proj) {
-    const g = PTS.filter(p => p.la != null);
-    const x0 = Math.min(...g.map(p => p.lo)), x1 = Math.max(...g.map(p => p.lo)), y0 = Math.min(...g.map(p => p.la)), y1 = Math.max(...g.map(p => p.la));
+    const g = PTS.filter(p => p.la != null), xs = g.map(p => p.lo), ys = g.map(p => p.la);
+    if (MAP) for (const s of MAP.subcounties) for (const r of s.rings) for (const [lo, la] of r) { xs.push(lo); ys.push(la); }
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const W = 600, H = Math.round(W * (y1 - y0) / (x1 - x0)) || 400;
     proj = { W, H, f: p => [8 + (p.lo - x0) / (x1 - x0) * (W - 16), 8 + (y1 - p.la) / (y1 - y0) * (H - 16)] };
     $("#map").setAttribute("viewBox", `0 0 ${W} ${H}`);
+  }
+  if (MAP && !baseSVG) {
+    const pt = ([lo, la]) => proj.f({ lo, la }).map(n => n.toFixed(1)).join(",");
+    const path = (ring, close) => "M" + ring.map(pt).join("L") + (close ? "Z" : "");
+    const cen = ring => { const a = ring.map(([lo, la]) => proj.f({ lo, la })); return [a.reduce((s, q) => s + q[0], 0) / a.length, a.reduce((s, q) => s + q[1], 0) / a.length]; };
+    baseSVG = `<g pointer-events="none">
+      <g fill="var(--wash)" stroke="var(--ink3)" stroke-width="1.2" stroke-linejoin="round">${MAP.subcounties.map(s => s.rings.map(r => `<path d="${path(r, true)}"/>`).join("")).join("")}</g>
+      <g id="floodlayer" fill="var(--watch)" fill-opacity=".22" stroke="none" style="display:none">${MAP.flood.map(r => `<path d="${path(r, true)}"/>`).join("")}</g>
+      <g fill="none" stroke="var(--watch)" stroke-width="2.2" stroke-linecap="round" opacity=".75">${MAP.rivers.map(r => r.lines.map(l => `<path d="${path(l)}"><title>${esc(r.name)}</title></path>`).join("")).join("")}</g>
+      <g fill="none" stroke="var(--ochre)" stroke-linecap="round" opacity=".7">${MAP.roads.map(r => r.lines.map(l => `<path d="${path(l)}" stroke-width="${r.cls === "trunk" ? 2.4 : 1.2}" ${r.wet === "no" ? 'stroke-dasharray="4 3"' : ""}/>`).join("")).join("")}</g>
+      <g font-size="11" font-weight="700" letter-spacing=".08em" fill="var(--ink3)" text-anchor="middle" style="text-transform:uppercase">${MAP.subcounties.map(s => { const [x, y] = cen(s.rings[0]); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" opacity=".8">${esc(s.name)}</text>`; }).join("")}</g>
+      <g>${MAP.health.map(h => { const [x, y] = proj.f(h); return `<path d="M${(x - 3).toFixed(1)},${y.toFixed(1)}h6M${x.toFixed(1)},${(y - 3).toFixed(1)}v6" stroke="var(--crit)" stroke-width="1.6" opacity=".7"/>`; }).join("")}</g>
+      <g>${MAP.towns.map(t => { const [x, y] = proj.f(t); return `<rect x="${(x - 4.5).toFixed(1)}" y="${(y - 4.5).toFixed(1)}" width="9" height="9" fill="var(--ink)" transform="rotate(45 ${x.toFixed(1)} ${y.toFixed(1)})"/><text x="${(x + 9).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="12" font-weight="700" fill="var(--ink)" stroke="var(--panel)" stroke-width="3" paint-order="stroke">${esc(t.name)}</text>`; }).join("")}</g>
+    </g>`;
   }
   const ordered = all.filter(x => x.p.la != null && x.p.id !== sel).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
   const dots = ordered.map(({ p, v }) => {
@@ -501,18 +518,19 @@ function mapHTML(all) {
   }).join("");
   // the selected water point is drawn last, on top, with crosshairs, a pulsing ring and its name
   const sp = BY[sel];
-  if (!sp || sp.la == null) { $("#mapsel").textContent = sp ? `${short(sp.id)} ${sp.n}: no location on record` : ""; return dots; }
+  if (!sp || sp.la == null) { $("#mapsel").textContent = sp ? `${short(sp.id)} ${sp.n}: no location on record` : ""; return withBase(dots); }
   const sv = view(sp), [x, y] = proj.f(sp), right = x < proj.W - 170;
   $("#mapsel").innerHTML = `Selected: <b>${esc(short(sp.id) + " " + sp.n)}</b> · ${sv.score}/100`;
-  return dots + `<g class="selmark" pointer-events="none">
+  return withBase(dots + `<g class="selmark" pointer-events="none">
     <line x1="0" y1="${y.toFixed(1)}" x2="${proj.W}" y2="${y.toFixed(1)}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>
     <line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${proj.H}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>
     <circle class="pulse" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
     <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="var(${bandVar(sv.band)})" stroke="var(--panel)" stroke-width="2.5"/>
     <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="10" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
     <text x="${(right ? x + 16 : x - 16).toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${right ? "start" : "end"}" font-size="12" font-weight="700" fill="var(--ink)" stroke="var(--panel)" stroke-width="3" paint-order="stroke">${esc(short(sp.id) + " " + sp.n)}</text>
-  </g>`;
+  </g>`);
 }
+function withBase(x) { return baseSVG.replace('style="display:none"', showFlood ? "" : 'style="display:none"') + x; }
 function detailHTML() {
   const p = BY[sel]; if (!p) return `<div class="empty">Choose a water point.</div>`;
   const v = view(p), d = S.decisions[p.id];
@@ -856,6 +874,8 @@ function show(v) {
   try { localStorage.setItem("as-view", v); } catch (e) {}
 }
 document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
+$("#floodtog") && $("#floodtog").addEventListener("change", e => { showFlood = e.target.checked; renderOfficer(); });
+if (!MAP) document.querySelectorAll(".maplegend").forEach(el => el.remove());
 $("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer"); renderOfficer(); });
 $("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); });
 $("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); } });

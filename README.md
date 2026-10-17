@@ -104,6 +104,7 @@ From the repository root, run:
 python -m pip install pandas numpy
 python scoring/score.py
 python scoring/export_points.py
+python scoring/export_map.py
 python app/build.py
 ```
 

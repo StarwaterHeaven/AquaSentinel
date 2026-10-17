@@ -70,6 +70,7 @@ pip install pandas numpy
 # copy the data pack CSVs and GeoJSON into data/
 python scoring/score.py          # out/water_point_scores.csv
 python scoring/export_points.py  # out/points.json
+python scoring/export_map.py     # out/map.json (map layers)
 python app/build.py              # out/aquasentinel-console.html and out/site/index.html
 scripts/publish_pages.sh         # republish the public site (needs push access)
 ```
@@ -87,6 +88,7 @@ Open `out/site/index.html` (or the public site) in two windows of the same brows
 - [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf): the deck; slides 1–6 are the pitch, 7–21 the appendix
 - [scoring/score.py](scoring/score.py): the score engine
 - [scoring/export_points.py](scoring/export_points.py): compact data for the app
+- [scoring/export_map.py](scoring/export_map.py): the pack's own synthetic map layers (sub-counties, roads, rivers, May 2024 flood, town, health facilities) for the console map
 - [app/app.template.html](app/app.template.html): the console (officer view, committee phone, funding and proof, receipt)
 - [app/build.py](app/build.py): builds the single-file console and the public site
 - [app/seed.json](app/seed.json): the live Qatom records replayed on the public site

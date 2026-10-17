@@ -8,6 +8,8 @@ t = (ROOT / "app" / "app.template.html").read_text()
 d = (ROOT / "out" / "points.json").read_text()
 seed = (ROOT / "app" / "seed.json").read_text() if (ROOT / "app" / "seed.json").exists() else "{}"
 t = t.replace("__SEED__", seed)
+mp = ROOT / "out" / "map.json"  # from scoring/export_map.py; the pack's own synthetic map layers
+t = t.replace("__MAP__", mp.read_text() if mp.exists() else "null")
 t = t.replace("__REPORTS_URL__", json.dumps(os.environ.get("AQS_REPORTS_URL", "https://aquasentinel-reports.hassan-khan-cd6.workers.dev")))  # Torque report store; "" = off
 t = t.replace("__FUND_ITEM__", os.environ.get("AQS_FUND_ITEM", "212")).replace("__ALERT_ITEM__", os.environ.get("AQS_ALERT_ITEM", "213"))
 (ROOT / "out" / "aquasentinel-console.html").write_text(t.replace("__DATA__", d))
