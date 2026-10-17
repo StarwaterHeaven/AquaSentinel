@@ -31,7 +31,8 @@ nav{display:flex;gap:4px;flex-wrap:wrap}
 nav button{border:1px solid transparent;background:none;padding:7px 12px;border-radius:6px;cursor:pointer;color:var(--ink2);font-weight:500}
 nav button[aria-current="true"]{background:var(--panel);border-color:var(--line);color:var(--ink)}
 nav button:focus-visible,.btn:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.sync{margin-left:auto;font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.topr{margin-left:auto;display:flex;align-items:center;gap:14px}
+.sync{font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ink3)}
 .dot.on{background:var(--good)}
 .view{padding-top:16px}
@@ -126,6 +127,18 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 .tot div{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
 .tot b{display:block;font-family:var(--mono);font-size:20px}
 .foot{margin-top:18px;font-size:12px;color:var(--ink3)}
+.bell{position:relative;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer;font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px}
+.bell[aria-expanded="true"]{background:var(--wash)}
+.bell .n{min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--crit);color:var(--panel);font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.notes{position:absolute;right:0;top:100%;width:min(420px,calc(100vw - 32px));max-height:70vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);z-index:6}
+.notes h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600;margin:0}
+.notes h3{margin:0;padding:8px 14px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600;background:var(--bg);border-block:1px solid var(--line)}
+.nrow{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:9px 14px 9px 17px;cursor:pointer}
+.nrow:hover{background:var(--wash)}
+.nrow b{display:block;font-size:13px;font-weight:600}
+.nrow small{display:block;color:var(--ink2);font-size:12px}
+.nrow[data-new]{box-shadow:inset 3px 0 0 var(--accent)}
+.nrow[data-done]{opacity:.6}
 .toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;max-width:340px;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.18)}
 @media (prefers-reduced-motion:no-preference){.toast{animation:up .25s ease-out}@keyframes up{from{transform:translateY(8px);opacity:0}}}
 .scroll-x{overflow-x:auto}
@@ -154,7 +167,11 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
     <button data-view="funding">Funding and proof</button>
     <button data-view="receipt">Receipt</button>
   </nav>
-  <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Connecting…</span></div>
+  <div class="topr">
+    <button class="bell" id="bell" type="button" aria-expanded="false" aria-controls="notes" aria-label="Notifications">Notifications <span class="n" id="belln" hidden></span></button>
+    <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Connecting…</span></div>
+  </div>
+  <div class="notes" id="notes" role="region" aria-label="Notifications for the water officer" hidden></div>
 </header>
 
 <section class="view" id="v-officer">
@@ -207,6 +224,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
       <form class="form" id="fundform">
         <label for="fwp">Where the money goes<select id="fwp"></select></label>
         <label for="fsp">Sponsor name on the proof<input id="fsp" value="Team Ocean demo sponsor" autocomplete="off"></label>
+        <label for="famt" id="famtrow">Demo amount<select id="famt"><option value="1">$1</option><option value="0.1">$0.10</option><option value="0.05">$0.05</option></select><span class="note">Simulated payments only. A live Qatom payment is always $1.</span></label>
         <div class="btns"><button class="btn pri" type="submit" id="fundbtn">Fund $1</button></div>
         <p class="note" id="fundnote">Each contribution lands in the district escrow or one water point's escrow, and every spend is drawn from it with a receipt.</p>
         <div id="fundpending"></div>
@@ -243,7 +261,7 @@ function seedState() { const x = JSON.parse(JSON.stringify(SEED || {})); for (co
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} try { chan && chan.postMessage(S); } catch (e) {} }
 function loadLocal() { try { const x = JSON.parse(localStorage.getItem(LS_KEY) || "null"); if (x) { for (const k of Object.keys(S)) S[k] = x[k] || {}; return true; } } catch (e) {} return false; }
 let mcp = null, pending = null, proofTab = "sponsor";
-let db = null, sel = PTS.find(p => p.st !== "Functional").id, filter = "all", shown = 60, editing = false, seenInbox = null;
+let db = null, sel = PTS.find(p => p.st !== "Functional").id, filter = "all", shown = 60, editing = false, seenInbox = null, seenFunds = null;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const short = id => id.slice(-4);
@@ -358,6 +376,8 @@ function renderFunding() {
   $("#livebadge").textContent = liveOn("fundItem") ? "Live on Qatom" : "Simulated";
   $("#fundnote").textContent = liveOn("fundItem") ? "Paid from your Qatom agent wallet after you approve in the TODAQ app. The receipt is tagged with the water point." : "Simulated in this view: the Qatom connector or the catalog items aren't available here. The record is kept the same way.";
   $("#fundpending").innerHTML = pendingHTML("fund");
+  $("#famtrow").hidden = liveOn("fundItem");
+  $("#fundbtn").textContent = "Fund " + usd(liveOn("fundItem") ? PRICE.fund : +$("#famt").value || PRICE.fund);
   const rows = Object.values(E).sort((a, b) => (a.k === "DISTRICT" ? -1 : b.k === "DISTRICT" ? 1 : b.in - a.in));
   $("#escrows").innerHTML = rows.map(e => `<tr><td>${esc(escName(e.k))}</td><td class="r">${usd(e.in)}</td><td class="r">${usd(e.spent)}</td><td class="r">${usd(e.in - e.spent)}</td></tr>`).join("");
   for (const b of document.querySelectorAll("#proofseg button")) b.setAttribute("aria-pressed", String(b.dataset.p === proofTab));
@@ -393,8 +413,9 @@ async function fund(approvalId) {
     if (r.state !== "paid") return;
     proof = r.proof; live = true;
   }
-  await put("funds", uid(), { wp, sponsor, amount: PRICE.fund, at: Date.now(), live, proof });
-  toast(`${usd(PRICE.fund)} from ${sponsor} to ${escName(wp)}.`);
+  const amount = live ? PRICE.fund : +$("#famt").value || PRICE.fund;
+  await put("funds", uid(), { wp, sponsor, amount, at: Date.now(), live, proof });
+  toast(`Payment received: ${usd(amount)} from ${sponsor} to ${escName(wp)}.`);
 }
 
 // ---------- officer view
@@ -749,7 +770,70 @@ function renderReceipt() {
 }
 
 // ---------- wiring
-function render() { renderOfficer(); renderPhone(); renderReceipt(); renderFunding(); }
+// ---------- notifications for the water officer
+// Derived from the live collections, so nothing new is stored. Only "last read" is kept, per viewer.
+const LOW_FUNDS = 0.2; // an escrow is "running low" at 20% of what it received
+const SEEN_KEY = "aqs-notes-seen";
+let notesSeen = 0, notesOpen = false;
+try { notesSeen = +localStorage.getItem(SEEN_KEY) || 0; } catch (e) {}
+if (!notesSeen) { notesSeen = Date.now(); try { localStorage.setItem(SEEN_KEY, String(notesSeen)); } catch (e) {} }
+function notes() {
+  const out = [], decided = (wp, at) => !!(S.decisions[wp] && S.decisions[wp].at >= at);
+  for (const [id, m] of Object.entries(S.inbox)) {
+    const r = m.result || "", wp = BY[m.wp] ? m.wp : "", nm = wp ? `${short(wp)} ${BY[wp].n}` : "";
+    const via = m.phone === "torque" ? "WhatsApp" : m.phone === "import" ? "Imported message" : "SMS";
+    const sub = `${via} · “${(m.text || "").slice(0, 60)}”`;
+    let n = null;
+    if (wp && /: (not working\.|broken \()/.test(r)) n = { g: "act", t: `${nm} reported not working`, sub, done: decided(wp, m.at) };
+    else if (wp && /: (dry\.|dry \()/.test(r)) n = { g: "act", t: `${nm} reported dry`, sub, done: decided(wp, m.at) };
+    else if (wp && /dirty water|water quality or flood/.test(r)) n = { g: "act", t: `${nm} reported dirty water. Boil-water advice is due`, sub, done: decided(wp, m.at) };
+    else if (wp && /: (working\.|ok \()/.test(r)) n = { g: "upd", t: `${nm} reported working again`, sub };
+    else if (/^(Needs the officer|Unknown water point|Asked which|Asked for the water point|Unclear report|Torque asked back|Could not match)/.test(r)) n = { g: "act", t: r.replace(/\.$/, ""), sub, done: false, wp };
+    if (n) out.push({ id: "i-" + id, wp, at: m.at, ...n });
+  }
+  for (const [id, f] of Object.entries(S.funds)) out.push({ id: "f-" + id, g: "money", go: "funding", at: f.at, t: `${usd(f.amount)} received from ${f.sponsor}`, sub: `${escName(f.wp)} · ${f.live ? "Live on Qatom" : "Simulated"}` });
+  for (const e of Object.values(escrowState())) {
+    const left = e.in - e.spent;
+    if (e.in <= 0) continue;
+    const at = e.spends.length ? e.spends[e.spends.length - 1].at : 0;
+    if (left < 0.0005) out.push({ id: "e-" + e.k, g: "money", go: "funding", at, t: `${escName(e.k)} is used up`, sub: `${usd(e.in)} in, ${usd(e.spent)} spent. Alerts and repairs now need new funding.` });
+    else if (left <= e.in * LOW_FUNDS) out.push({ id: "l-" + e.k + "-" + usd(left), g: "money", go: "funding", at, t: `${escName(e.k)} is running low`, sub: `${usd(left)} left of ${usd(e.in)}, ${left < PRICE.sms ? "not enough for another SMS" : `enough for about ${Math.floor(left / PRICE.sms + 1e-9)} more SMS`}. Ask a sponsor to top it up.` });
+  }
+  if (pending) out.push({ id: "p", g: "money", go: pending.kind === "fund" ? "funding" : "", wp: pending.wp || "", at: Date.now(), pin: true, t: "Waiting for your approval in the TODAQ app", sub: pending.kind === "fund" ? "Sponsorship payment" : "Approved alert payment" });
+  return out.sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.at - a.at).slice(0, 60);
+}
+function renderNotes() {
+  const N = notes(), isNew = n => !n.done && (n.pin || n.at > notesSeen), unread = N.filter(isNew).length;
+  const b = $("#belln"); b.hidden = !unread; b.textContent = unread > 99 ? "99+" : unread;
+  $("#bell").setAttribute("aria-label", unread ? `Notifications, ${unread} unread` : "Notifications");
+  $("#bell").setAttribute("aria-expanded", String(notesOpen));
+  const box = $("#notes"); box.hidden = !notesOpen; if (!notesOpen) return;
+  const groups = [["act", "Needs you"], ["money", "Money"], ["upd", "Updates"]];
+  const body = groups.map(([g, label]) => {
+    const rows = N.filter(n => n.g === g);
+    return rows.length ? `<h3>${label}</h3>` + rows.map(n => `<button class="nrow" type="button" data-nid="${esc(n.id)}"${isNew(n) ? " data-new" : ""}${n.done ? " data-done" : ""}><b>${esc(n.t)}</b><small>${esc(n.sub)} · ${when(n.at)}${n.done ? " · decided" : ""}</small></button>`).join("") : "";
+  }).join("");
+  box.innerHTML = `<div class="ph"><h2>Notifications</h2><button class="btn" id="readall" type="button" style="padding:3px 8px;font-size:12px"${unread ? "" : " disabled"}>Mark all read</button></div>` + (body || `<div class="empty">Nothing yet. New reports, payments and messages that need you will appear here.</div>`);
+  box._notes = N;
+}
+function noteGo(id) {
+  const n = ($("#notes")._notes || []).find(x => x.id === id); if (!n) return;
+  notesOpen = false;
+  if (n.go) show(n.go);
+  else if (n.wp) { sel = n.wp; editing = false; show("officer"); }
+  render();
+  if (!n.go && n.wp) $("#detail").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+$("#famt").addEventListener("change", renderFunding);
+$("#bell").addEventListener("click", () => { notesOpen = !notesOpen; renderNotes(); });
+$("#notes").addEventListener("click", e => {
+  if (e.target.id === "readall") { notesSeen = Date.now(); try { localStorage.setItem(SEEN_KEY, String(notesSeen)); } catch (x) {} return renderNotes(); }
+  const r = e.target.closest(".nrow"); if (r) noteGo(r.dataset.nid);
+});
+document.addEventListener("click", e => { if (notesOpen && !e.target.closest("#notes, #bell")) { notesOpen = false; renderNotes(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && notesOpen) { notesOpen = false; renderNotes(); $("#bell").focus(); } });
+
+function render() { renderOfficer(); renderPhone(); renderReceipt(); renderFunding(); renderNotes(); }
 function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; $("#toastbox").replaceChildren(el); setTimeout(() => el.remove(), 4200); }
 function show(v) {
   for (const b of document.querySelectorAll("nav button")) b.setAttribute("aria-current", String(b.dataset.view === v));
@@ -821,6 +905,11 @@ if (REPORTS_URL) { setTimeout(pollTorque, 3000); setInterval(pollTorque, 4000); 
         const ids = Object.keys(m);
         if (seenInbox) for (const id of ids) if (!seenInbox.has(id) && m[id].wp) toast("New report: " + m[id].result);
         seenInbox = new Set(ids);
+      }
+      if (col === "funds") {
+        const ids = Object.keys(m);
+        if (seenFunds) for (const id of ids) if (!seenFunds.has(id)) toast(`Payment received: ${usd(m[id].amount)} from ${m[id].sponsor}`);
+        seenFunds = new Set(ids);
       }
       render();
     }, () => { $("#syncdot").classList.remove("on"); $("#synctext").textContent = "Connection lost: reload to resume"; });

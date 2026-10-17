@@ -39,6 +39,7 @@ Presenter: **Vladyslav**. Committee phone: **Ruth**, if she is there. Otherwise 
 5. **Window A.** A red bar says a new report needs a decision, and the Water officer tab shows a count. Click **Open the to-do list**: "Urgent reports first, then broken pumps nobody has been sent to, then job cards to chase, then silent pumps to inspect. Approving clears it."
 6. Optional, if the flood CSV is there: **Import messages (CSV)** in window A. "Here are today's flood reports: each matched to a water point and rescored, and the ones we can't place go to the officer."
 7. Open **Funding and proof** (tab in window A). Show the escrows table and the **Committee** proof for 0631: "$1 from a sponsor this morning, live on Qatom, transaction 91ca3e13. The sponsor, the officer and the committee each see where it went."
+8. Optional, about 30 seconds, if there is time: **the officer's alerts**. In **Funding and proof**, choose water point **0151** (Olango), set **Demo amount** to **$0.05** and press **Fund**. In window B pick the **Olango committee chair** and text **BROKEN** twice. In window A open the **Notifications** bell: "The officer is told the committee reported it broken, that the sponsor's money has arrived, and that this water point's escrow is running low, before it runs out." (The amount choice only exists for simulated payments; a live Qatom payment is always $1.) Press **Reset demo** afterwards.
 
 ## Optional: a real phone via Torque (about 30 seconds)
 
