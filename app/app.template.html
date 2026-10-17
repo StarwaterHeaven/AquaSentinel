@@ -125,6 +125,21 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 .toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;max-width:340px;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.18)}
 @media (prefers-reduced-motion:no-preference){.toast{animation:up .25s ease-out}@keyframes up{from{transform:translateY(8px);opacity:0}}}
 .scroll-x{overflow-x:auto}
+.fundgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px;align-items:start}
+@media (max-width:900px){.fundgrid{grid-template-columns:minmax(0,1fr)}}
+.form{display:grid;gap:10px;padding:14px}
+.form label{display:grid;gap:4px;font-size:12px;color:var(--ink2)}
+.form input,.form select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;cursor:pointer;font-weight:600;font-size:12px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.live{font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:var(--good-bg);color:var(--good)}
+.sim{font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:var(--wash);color:var(--ink2)}
+.pending{border:1px solid var(--ochre);border-radius:8px;padding:12px;display:grid;gap:8px;font-size:13px}
+.pending a{color:var(--accent);font-weight:600;word-break:break-all}
+.proofbody{padding:14px;display:grid;gap:12px}
+.stmt{border-left:3px solid var(--accent);padding:8px 12px;background:var(--bg);font-size:13px}
+.tx{font-family:var(--mono);font-size:11.5px;color:var(--ink3);word-break:break-all}
 </style>
 
 <header class="top">
@@ -132,6 +147,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
   <nav aria-label="Views">
     <button data-view="officer" aria-current="true">Water officer</button>
     <button data-view="phone">Committee phone</button>
+    <button data-view="funding">Funding and proof</button>
     <button data-view="receipt">Receipt</button>
   </nav>
   <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Connecting…</span></div>
@@ -179,25 +195,48 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
   </div>
 </section>
 
+<section class="view" id="v-funding" hidden>
+  <div class="fundgrid">
+    <div class="panel">
+      <div class="ph"><h2>Fund a water point</h2><span id="livebadge" class="sim">Simulated</span></div>
+      <form class="form" id="fundform">
+        <label for="fwp">Where the money goes<select id="fwp"></select></label>
+        <label for="fsp">Sponsor name on the proof<input id="fsp" value="Team Ocean demo sponsor" autocomplete="off"></label>
+        <div class="btns"><button class="btn pri" type="submit" id="fundbtn">Fund $1</button></div>
+        <p class="note" id="fundnote">Each contribution lands in the district escrow or one water point's escrow, and every spend is drawn from it with a receipt.</p>
+        <div id="fundpending"></div>
+      </form>
+      <div class="ph" style="border-top:1px solid var(--line)"><h2>Escrows</h2></div>
+      <div class="scroll-x"><table><thead><tr><th>Escrow</th><th class="r">In</th><th class="r">Spent</th><th class="r">Left</th></tr></thead><tbody id="escrows"></tbody></table></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Verified proof</h2><div class="seg" id="proofseg"><button data-p="sponsor" aria-pressed="true">Sponsor</button><button data-p="officer" aria-pressed="false">Water officer</button><button data-p="committee" aria-pressed="false">Committee</button></div></div>
+      <div class="proofbody" id="proof"></div>
+    </div>
+  </div>
+</section>
+
 <p class="foot">Scenario results on synthetic data. Kijana District is fictional. No score here shows that water is safe to drink; only a lab test can.</p>
 <div id="toastbox"></div>
 
 <script>
 const PTS = __DATA__;
 const BY = Object.fromEntries(PTS.map(p => [p.id, p]));
-const PRICE = { call: 0.001, sms: 0.02 };
+const PRICE = { call: 0.001, sms: 0.02, fund: 1 };
+const QATOM = { server: "Qatom", fundItem: __FUND_ITEM__, alertItem: __ALERT_ITEM__ };
 const PHONES = [
   { id: "ph-0631", label: "Olagoni committee chair", num: "+000 555 0631 (demo)", wps: ["KJ-WP-0631"] },
   { id: "ph-0151", label: "Olango committee chair", num: "+000 555 0151 (demo)", wps: ["KJ-WP-0151"] },
   { id: "ph-0143", label: "Shared phone, Olandewe (two water points)", num: "+000 555 0143 (demo)", wps: ["KJ-WP-0069", "KJ-WP-0143"] },
   { id: "ph-anon", label: "Unregistered number", num: "+000 555 9999 (demo)", wps: [] }
 ];
-const S = { decisions: {}, status: {}, inbox: {}, outbox: {}, ledger: {} };
+const S = { decisions: {}, status: {}, inbox: {}, outbox: {}, ledger: {}, funds: {} };
+let mcp = null, pending = null, proofTab = "sponsor";
 let db = null, sel = PTS.find(p => p.st !== "Functional").id, filter = "nw", shown = 60, editing = false, seenInbox = null;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const short = id => id.slice(-4);
-const usd = v => "$" + (Math.abs(v) >= 1 || v === 0 ? v.toFixed(2) : v.toFixed(3));
+const usd = v => { const r = Math.round(v * 1000) / 1000; return (r < 0 ? "-$" : "$") + (Number.isInteger(r) ? Math.abs(r).toLocaleString() : Number.isInteger(Math.round(r * 1000) / 10) ? Math.abs(r).toFixed(2) : Math.abs(r).toFixed(3)); }; // house rule: $1, $0.04, $0.001
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
 const when = t => { const d = new Date(t); return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
 
@@ -254,7 +293,94 @@ async function put(col, id, data) {
   if (db) { try { await db.collection(col).doc(id).set(data); return; } catch (e) { toast("Could not save: " + (e && e.code || "error")); } }
   S[col][id] = data; render();
 }
-async function meter(item, wp, units, unitPrice) { await put("ledger", uid(), { item, wp: wp || "", units, cost: +(units * unitPrice).toFixed(4), at: Date.now() }); }
+async function meter(item, wp, units, unitPrice, proof) { await put("ledger", uid(), { item, wp: wp || "", units, cost: +(units * unitPrice).toFixed(4), at: Date.now(), proof: proof || "" }); }
+
+// ---------- Qatom (live when the viewer has the Qatom connector and the items exist; simulated otherwise)
+const liveOn = k => !!(mcp && QATOM[k]);
+function textOf(x) { try { return typeof x === "string" ? x : JSON.stringify(x); } catch (e) { return String(x); } }
+async function qatomBuy(itemKey, args, approvalId, ctx) {
+  const input = { catalog_item_id: QATOM[itemKey], arguments: args };
+  if (approvalId) input.approval_id = approvalId;
+  try {
+    const res = await mcp.callTool(QATOM.server, "agent_checkout", input);
+    const body = textOf(res && (res.payload ?? res.content));
+    pending = null; render();
+    return { state: "paid", proof: body.slice(0, 600) };
+  } catch (e) {
+    const msg = textOf(e && (e.message || e)) + " " + textOf(e && e.result);
+    const link = (msg.match(/https:\/\/[^\s"'<>)]*approvals?[^\s"'<>)]*/) || [])[0];
+    const aid = (msg.match(/\b(aar_[A-Za-z0-9-]+|apr_[A-Za-z0-9-]+)/) || [])[1];
+    if (link || aid) { pending = { ...ctx, itemKey, args, approvalId: aid || approvalId, link: link || "" }; render(); toast("Approve it in your TODAQ app, then press I approved."); return { state: "pending" }; }
+    const code = e && e.code;
+    const why = code === "server_not_connected" ? "The Qatom connector isn't connected for this viewer." : code === "needs_reauth" ? "Reconnect the Qatom connector, then try again." : code === "not_in_manifest" || code === "capability_disabled" ? "Qatom isn't available on this page right now." : "Qatom said: " + (e && e.message || "error");
+    pending = null; toast(why); render();
+    return { state: "failed" };
+  }
+}
+function pendingHTML(kind) {
+  if (!pending || pending.kind !== kind) return "";
+  return `<div class="pending"><b>Waiting for approval in the TODAQ app</b>${pending.link ? `<a href="${esc(pending.link)}" target="_blank" rel="noopener">Open the approval link</a>` : ""}<span class="note">Nothing is charged until it is approved.</span><div class="btns"><button class="btn pri" type="button" data-approved="${kind}">I approved it</button><button class="btn" type="button" data-cancel="1">Cancel</button></div></div>`;
+}
+
+// ---------- funding and proof
+function escrowState() {
+  const E = {};
+  const get = k => (E[k] = E[k] || { k, in: 0, spent: 0, funds: [], spends: [] });
+  get("DISTRICT");
+  const F = Object.values(S.funds).sort((a, b) => a.at - b.at);
+  for (const f of F) { const e = get(f.wp); e.in += f.amount; e.funds.push(f); }
+  const L = Object.values(S.ledger).sort((a, b) => a.at - b.at);
+  for (const x of L) {
+    const own = x.wp && E[x.wp] && E[x.wp].in - E[x.wp].spent >= x.cost ? E[x.wp] : E.DISTRICT;
+    own.spent += x.cost; own.spends.push(x);
+  }
+  return E;
+}
+const escName = k => k === "DISTRICT" ? "District escrow (all water points)" : `${short(k)} ${BY[k] ? BY[k].n : k}`;
+function renderFunding() {
+  const E = escrowState();
+  $("#livebadge").className = liveOn("fundItem") ? "live" : "sim";
+  $("#livebadge").textContent = liveOn("fundItem") ? "Live on Qatom" : "Simulated";
+  $("#fundnote").textContent = liveOn("fundItem") ? "Paid from your Qatom agent wallet after you approve in the TODAQ app. The receipt is tagged with the water point." : "Simulated in this view: the Qatom connector or the catalog items aren't available here. The record is kept the same way.";
+  $("#fundpending").innerHTML = pendingHTML("fund");
+  const rows = Object.values(E).sort((a, b) => (a.k === "DISTRICT" ? -1 : b.k === "DISTRICT" ? 1 : b.in - a.in));
+  $("#escrows").innerHTML = rows.map(e => `<tr><td>${esc(escName(e.k))}</td><td class="r">${usd(e.in)}</td><td class="r">${usd(e.spent)}</td><td class="r">${usd(e.in - e.spent)}</td></tr>`).join("");
+  for (const b of document.querySelectorAll("#proofseg button")) b.setAttribute("aria-pressed", String(b.dataset.p === proofTab));
+  $("#proof").innerHTML = proofTab === "sponsor" ? proofSponsor(E) : proofTab === "officer" ? proofOfficer(E) : proofCommittee(E);
+}
+function fundLine(f) { return `<li>${usd(f.amount)} from <b>${esc(f.sponsor)}</b> to ${esc(escName(f.wp))} at ${when(f.at)} ${f.live ? `<span class="live">Live</span>` : `<span class="sim">Simulated</span>`}${f.proof ? `<div class="tx">Proof: ${esc(f.proof.slice(0, 180))}</div>` : ""}</li>`; }
+function proofSponsor(E) {
+  const sp = $("#fsp").value.trim() || "Team Ocean demo sponsor";
+  const mine = Object.values(S.funds).filter(f => f.sponsor === sp);
+  if (!mine.length) return `<p class="note">No contributions from “${esc(sp)}” yet. Fund a water point to see where the money goes.</p>`;
+  const total = mine.reduce((a, f) => a + f.amount, 0);
+  const parts = [...new Set(mine.map(f => f.wp))].map(k => { const e = E[k], share = mine.filter(f => f.wp === k).reduce((a, f) => a + f.amount, 0) / (e.in || 1); return `<li>${esc(escName(k))}: your share of spending ${usd(e.spent * share)} on ${e.spends.length} metered actions; ${usd((e.in - e.spent) * share)} still in escrow.</li>`; }).join("");
+  return `<div class="stmt"><b>${esc(sp)}</b> has given ${usd(total)} in ${mine.length} contribution${mine.length > 1 ? "s" : ""}.</div><h4 class="note">Contributions</h4><ul class="why">${mine.map(fundLine).join("")}</ul><h4 class="note">Where it went</h4><ul class="why">${parts}</ul>`;
+}
+function proofOfficer(E) {
+  const all = pts(), funded = Object.keys(E).filter(k => k !== "DISTRICT");
+  const tin = Object.values(E).reduce((a, e) => a + e.in, 0), tsp = Object.values(E).reduce((a, e) => a + e.spent, 0);
+  const nwUnfunded = all.filter(x => x.v.nw && !E[x.p.id]).length;
+  return `<div class="stmt">District funding: ${usd(tin)} in, ${usd(tsp)} spent, ${usd(tin - tsp)} left. ${funded.length} water point${funded.length === 1 ? " has" : "s have"} its own sponsor; ${nwUnfunded} not-working points draw on the district escrow.</div>
+    <h4 class="note">Latest contributions</h4><ul class="why">${Object.values(S.funds).sort((a, b) => b.at - a.at).slice(0, 8).map(fundLine).join("") || "<li>None yet.</li>"}</ul>`;
+}
+function proofCommittee(E) {
+  const k = $("#fwp").value !== "DISTRICT" ? $("#fwp").value : sel, e = E[k], p = BY[k];
+  if (!p) return `<p class="note">Choose a water point.</p>`;
+  const stmt = e ? `Water point ${short(k)}: ${usd(e.in)} received from ${new Set(e.funds.map(f => f.sponsor)).size} sponsor(s), ${usd(e.spent)} spent, ${usd(e.in - e.spent)} left.` : `Water point ${short(k)} has no sponsor of its own yet. Its alerts and repairs are paid from the district escrow.`;
+  return `<div class="stmt"><b>${esc(p.n)}</b><br>${esc(stmt)}</div>${e ? `<h4 class="note">Received</h4><ul class="why">${e.funds.map(fundLine).join("")}</ul><h4 class="note">Spent</h4><ul class="why">${e.spends.slice(-8).reverse().map(x => `<li>${esc(x.item)}: ${usd(x.cost)} at ${when(x.at)}</li>`).join("") || "<li>Nothing yet.</li>"}</ul>` : ""}<div class="btns"><button class="btn" type="button" id="smsbal" data-wp="${k}">Text this statement to the committee</button></div>`;
+}
+async function fund(approvalId) {
+  const wp = $("#fwp").value, sponsor = $("#fsp").value.trim() || "Team Ocean demo sponsor";
+  let proof = "", live = false;
+  if (liveOn("fundItem")) {
+    const r = await qatomBuy("fundItem", { wp_id: wp, sponsor }, approvalId, { kind: "fund", wp });
+    if (r.state !== "paid") return;
+    proof = r.proof; live = true;
+  }
+  await put("funds", uid(), { wp, sponsor, amount: PRICE.fund, at: Date.now(), live, proof });
+  toast(`${usd(PRICE.fund)} from ${sponsor} to ${escName(wp)}.`);
+}
 
 // ---------- officer view
 const pts = () => PTS.map(p => ({ p, v: view(p) }));
@@ -330,6 +456,7 @@ function detailHTML() {
     <div class="sec"><h4>Why</h4><ul class="why">${why(p, v).map(w => `<li>${esc(w)}</li>`).join("")}</ul></div>
     <div class="sec"><h4>Suggested actions</h4><div class="acts" id="acts">${acts}</div></div>
     <div class="sec"><h4>SMS to the committee</h4>${editing && !d ? `<textarea class="sms" id="smsedit" aria-label="SMS text">${esc(sms)}</textarea>` : `<div class="sms" id="smstext">${esc(sms)}</div>`}</div>
+    ${pendingHTML("alert")}
     ${decided}
   </div>`;
 }
@@ -341,16 +468,22 @@ function renderOfficer() {
   $("#map").innerHTML = mapHTML(all);
   $("#detail").innerHTML = detailHTML();
 }
-async function decide(kind) {
+async function decide(kind, approvalId) {
   const p = BY[sel], v = view(p);
   const chosen = [...document.querySelectorAll("#acts input")].filter(i => i.checked).map(i => v.acts[+i.dataset.a]);
   const sms = $("#smsedit") ? $("#smsedit").value : smsFor(p, v, chosen);
   const at = Date.now();
+  let proof = null;
+  if (kind === "approved" && liveOn("alertItem")) {
+    const r = await qatomBuy("alertItem", { wp_id: p.id, message: sms.slice(0, 480) }, approvalId, { kind: "alert", wp: p.id });
+    if (r.state !== "paid") return;
+    proof = r.proof;
+  }
   editing = false;
-  await put("decisions", p.id, { decision: kind, actions: chosen.map(a => a.t), sms, score: v.score, at });
+  await put("decisions", p.id, { decision: kind, actions: chosen.map(a => a.t), sms, score: v.score, at, proof: proof || "" });
   if (kind === "approved") {
     await put("outbox", uid(), { wp: p.id, text: sms, kind: "alert", at });
-    await meter("Officer-approved SMS alert", p.id, 1, PRICE.sms);
+    await meter(proof ? "Officer-approved SMS alert (paid on Qatom)" : "Officer-approved SMS alert", p.id, 1, PRICE.sms, proof);
     if (chosen.some(a => a.k === "dispatch")) await meter(`Job card sent to mechanic ${p.mech}`, p.id, 1, PRICE.sms);
     toast(`Approved. Alert sent to the ${short(p.id)} committee.`);
   } else toast(`Rejected. Nothing sent for ${short(p.id)}.`);
@@ -422,7 +555,7 @@ function renderReceipt() {
 }
 
 // ---------- wiring
-function render() { renderOfficer(); renderPhone(); renderReceipt(); }
+function render() { renderOfficer(); renderPhone(); renderReceipt(); renderFunding(); }
 function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; $("#toastbox").replaceChildren(el); setTimeout(() => el.remove(), 4200); }
 function show(v) {
   for (const b of document.querySelectorAll("nav button")) b.setAttribute("aria-current", String(b.dataset.view === v));
@@ -439,9 +572,26 @@ $("#detail").addEventListener("click", e => {
   if (e.target.id === "approve") decide("approved");
   if (e.target.id === "reject") decide("rejected");
   if (e.target.id === "edit") { editing = !editing; renderOfficer(); }
+  if (e.target.dataset.approved === "alert" && pending) { sel = pending.wp; decide("approved", pending.approvalId); }
+  if (e.target.dataset.cancel) { pending = null; render(); }
   if (e.target.id === "reopen") { if (db) db.collection("decisions").doc(sel).delete().catch(() => {}); else { delete S.decisions[sel]; render(); } }
 });
 $("#scan").addEventListener("click", async () => { await meter("Weekly scan: score every water point", "", PTS.length, PRICE.call); toast(`Scanned ${PTS.length.toLocaleString()} water points. Cost ${usd(PTS.length * PRICE.call)}.`); });
+$("#fwp").innerHTML = `<option value="DISTRICT">District escrow (all water points)</option>` + PTS.slice().sort((a, b) => (view(b).nw - view(a).nw) || (view(a).score - view(b).score)).map(p => `<option value="${p.id}">${short(p.id)} ${esc(p.n)}</option>`).join("");
+$("#fwp").value = "KJ-WP-0631";
+$("#fundform").addEventListener("submit", e => { e.preventDefault(); fund(); });
+$("#fundform").addEventListener("click", e => { if (e.target.dataset.approved === "fund" && pending) fund(pending.approvalId); if (e.target.dataset.cancel) { pending = null; render(); } });
+$("#fwp").addEventListener("change", renderFunding);
+$("#fsp").addEventListener("input", renderFunding);
+$("#proofseg").addEventListener("click", e => { const b = e.target.closest("button[data-p]"); if (b) { proofTab = b.dataset.p; renderFunding(); } });
+$("#proof").addEventListener("click", async e => {
+  if (e.target.id !== "smsbal") return;
+  const k = e.target.dataset.wp, E = escrowState(), x = E[k];
+  const text = x ? `FUNDS ${short(k)}: ${usd(x.in)} received, ${usd(x.spent)} spent, ${usd(x.in - x.spent)} left. Proof kept by the district.` : `FUNDS ${short(k)}: no sponsor yet; covered by the district escrow.`;
+  await put("outbox", uid(), { wp: k, text, kind: "alert", at: Date.now() });
+  await meter("Funding statement SMS", k, 1, PRICE.sms);
+  toast("Statement sent to the committee phone.");
+});
 $("#ident").innerHTML = PHONES.map(p => `<option value="${p.id}">${esc(p.label)}</option>`).join("");
 $("#ident").addEventListener("change", e => { ident = e.target.value; renderPhone(); });
 document.querySelector(".keys").addEventListener("click", e => { const b = e.target.closest("button"); if (b) send(b.dataset.q); });
@@ -451,6 +601,10 @@ try { const v = localStorage.getItem("as-view"); if (v && document.getElementByI
 const hv = location.hash.slice(1); if (hv && document.getElementById("v-" + hv)) show(hv);
 render();
 
+(async () => {
+  try { mcp = window.claude && claude.use ? await claude.use("mcp") : null; } catch (e) { mcp = null; }
+  render();
+})();
 (async () => {
   try { db = window.claude && claude.use ? await claude.use("db") : null; } catch (e) { db = null; }
   if (!db) { $("#synctext").textContent = "Offline demo: changes stay in this tab"; return; }
