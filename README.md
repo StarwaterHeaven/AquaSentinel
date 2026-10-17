@@ -16,7 +16,7 @@ No install needed. Open the officer view and the committee phone **in two window
 
 1. **Officer view:** click the red bar, or the top water point, to see its score in five parts and the reasons in plain words.
 2. Press **Approve and send**. Nothing goes out until you do. On the public site the payment is labelled *Simulated*.
-3. **Committee phone:** the alert has arrived. Press **BROKEN**, **DRY** or **OK**, or type a message in English or Swahili (try `0631 imeharibika`).
+3. **Committee phone:** the alert has arrived. Press **BROKEN**, **DRY** or **OK**, or type a message such as `0631 broken`.
 4. Back in the officer view, a new urgent report appears and the score has already changed.
 5. Open **Funding and proof** to follow a $1 sponsorship from sponsor to committee. **Reset demo** (top right) starts again.
 

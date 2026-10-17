@@ -109,6 +109,9 @@ textarea.sms{width:100%;min-height:86px;resize:vertical}
 .msg.out{background:#17261a;color:#e8f1e5;align-self:flex-end}
 .msg small{display:block;opacity:.65;font-size:10px;margin-top:2px}
 .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.samples{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.samples button{background:none;border:1px solid #4a6066;color:#c9d8d8;border-radius:999px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+.samples button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .keys button{background:#2f4247;color:#e4ecec;border:0;border-radius:10px;padding:10px 0;font-weight:700;font-size:12px;cursor:pointer;font-family:var(--mono)}
 .compose{display:flex;gap:6px;margin-top:8px}
 .compose input{flex:1;min-width:0;border-radius:8px;border:0;padding:9px;background:#e4ecec;color:#17261a;font-family:var(--mono)}
@@ -186,6 +189,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-b
     <div class="panel">
       <div class="ph"><h2>Water points</h2><div class="btns"><label class="btn" for="csvin" style="display:inline-flex;align-items:center">Import messages (CSV)</label><input id="csvin" type="file" accept=".csv,text/csv" hidden><button class="btn" id="scan">Run weekly scan</button></div></div>
       <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg></div>
+      <div class="note" id="mapcount" aria-live="polite" style="padding:0 14px"></div>
       <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span></div>
       <div class="filters">
         <input id="q" type="search" placeholder="Search name or number (press / )" aria-label="Search water points">
@@ -204,6 +208,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-b
       <div class="phone">
         <div class="screen"><div class="scr-h"><span id="scrname">Messages</span><span>Kijana Water Line</span></div><div class="thread" id="thread"></div></div>
         <div class="keys"><button data-q="OK">OK</button><button data-q="BROKEN">BROKEN</button><button data-q="DRY">DRY</button><button data-q="DIRTY">DIRTY</button></div>
+        <div class="samples" id="samples" aria-label="Sample messages"><button type="button" data-q="Pump is broken, please send a mechanic">Pump is broken</button><button type="button" data-q="The well has dried up">Well dried up</button><button type="button" data-q="Water looks dirty and smells bad">Dirty water</button><button type="button" data-q="The pump is fixed and working now">Fixed</button></div>
         <form class="compose" id="compose"><input id="msgin" autocomplete="off" placeholder="Type a message" aria-label="Message"><button type="submit">Send</button></form>
       </div>
     </div>
@@ -478,9 +483,11 @@ function filtered(all) {
 const bandVar = b => ({ Critical: "--crit", "At risk": "--risk", Watch: "--watch", Good: "--good" }[b]);
 const bandCls = b => b === "At risk" ? "b-risk" : "b-" + b;
 function listHTML(rows) {
-  if (!rows.length) return `<div class="empty">No water points match.</div>`;
+  const narrowed = filter !== "all" || $("#q").value.trim() || $("#sub").value;
+  const clear = narrowed ? ` <button class="btn" id="clearf" type="button" style="padding:2px 8px;font-size:12px">Clear filters</button>` : "";
+  if (!rows.length) return `<div class="empty">No water points match.${clear}</div>`;
   const label = { all: "All water points", ok: "Working", nw: "Not working", crit: "Critical", risk: "At risk", silent: "Silent points", todo: "To do", done: "Approved" }[filter] || "";
-  return `<div class="note" style="padding:8px 14px;border-bottom:1px solid var(--line)">${label}: ${rows.length.toLocaleString()} · ${filter === "all" ? "not working first, then lowest score" : filter === "todo" ? "urgent first, then most people affected" : "lowest score first"} · showing ${Math.min(shown, rows.length)}</div>` + rows.slice(0, shown).map(({ p, v }) => {
+  return `<div class="note" style="padding:8px 14px;border-bottom:1px solid var(--line)">${label}: ${rows.length.toLocaleString()} · ${filter === "all" ? "not working first, then lowest score" : filter === "todo" ? "urgent first, then most people affected" : "lowest score first"} · showing ${Math.min(shown, rows.length)}${clear}</div>` + rows.slice(0, shown).map(({ p, v }) => {
     const d = S.decisions[p.id], q = filter === "todo" ? prio(p, v) : null;
     return `<button class="row" role="option" data-id="${p.id}" aria-selected="${p.id === sel}">
       <span class="sc ${bandCls(v.band)}">${v.score}</span>
@@ -537,6 +544,8 @@ function renderOfficer() {
   const rows = filtered(all);
   $("#list").innerHTML = listHTML(rows);
   $("#map").innerHTML = mapHTML(rows);
+  const mapped = rows.filter(x => x.p.la != null).length;
+  $("#mapcount").textContent = rows.length === all.length ? "" : `Map shows ${mapped.toLocaleString()} of ${all.length.toLocaleString()} water points`;
   $("#detail").innerHTML = detailHTML();
 }
 async function decide(kind, approvalId) {
@@ -544,6 +553,7 @@ async function decide(kind, approvalId) {
   const chosen = [...document.querySelectorAll("#acts input")].filter(i => i.checked).map(i => v.acts[+i.dataset.a]);
   const sms = $("#smsedit") ? $("#smsedit").value : smsFor(p, v, chosen);
   const at = Date.now();
+  const nextId = filter === "todo" ? (() => { const ids = filtered(pts()).map(x => x.p.id), i = ids.indexOf(sel); return ids[i + 1] || ids[i - 1] || ""; })() : "";
   let proof = null;
   if (kind === "approved" && liveOn("alertItem")) {
     const r = await qatomBuy("alertItem", { wp_id: p.id, message: sms.slice(0, 480) }, approvalId, { kind: "alert", wp: p.id });
@@ -558,6 +568,7 @@ async function decide(kind, approvalId) {
     if (chosen.some(a => a.k === "dispatch")) await meter(`Job card sent to mechanic ${p.mech}`, p.id, 1, PRICE.sms);
     toast(`Approved. Alert sent to the ${short(p.id)} committee.`);
   } else toast(`Rejected. Nothing sent for ${short(p.id)}.`);
+  if (nextId && BY[nextId]) { sel = nextId; renderOfficer(); }
 }
 
 // ---------- phone
@@ -862,7 +873,7 @@ document.addEventListener("keydown", e => {
 document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view, true); });
 $("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer", true); renderOfficer(); });
 $("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); intoView(document.querySelector(".filters")); });
-$("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
+$("#list").addEventListener("click", e => { if (e.target.id === "clearf") { filter = "all"; shown = 60; $("#q").value = ""; $("#sub").value = ""; return renderOfficer(); } if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
 $("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
 $("#q").addEventListener("input", () => { shown = 60; renderOfficer(); });
 $("#sub").addEventListener("change", () => { shown = 60; renderOfficer(); });
@@ -894,6 +905,7 @@ $("#proof").addEventListener("click", async e => {
 $("#ident").innerHTML = PHONES.map(p => `<option value="${p.id}">${esc(p.label)}</option>`).join("");
 $("#ident").addEventListener("change", e => { ident = e.target.value; renderPhone(); });
 document.querySelector(".keys").addEventListener("click", e => { const b = e.target.closest("button"); if (b) send(b.dataset.q); });
+$("#samples").addEventListener("click", e => { const b = e.target.closest("button"); if (b) send(b.dataset.q); });
 $("#compose").addEventListener("submit", e => { e.preventDefault(); const v = $("#msgin").value; $("#msgin").value = ""; send(v); });
 $("#sub").insertAdjacentHTML("beforeend", [...new Set(PTS.map(p => p.sc))].sort().map(s => `<option>${s}</option>`).join(""));
 try { const v = localStorage.getItem("as-view"); if (v && document.getElementById("v-" + v)) show(v); } catch (e) {}
