@@ -142,6 +142,11 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 .toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;max-width:340px;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.18)}
 @media (prefers-reduced-motion:no-preference){.toast{animation:up .25s ease-out}@keyframes up{from{transform:translateY(8px);opacity:0}}}
 .scroll-x{overflow-x:auto}
+.filters,#detail{scroll-margin-top:84px}
+.totop{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:19;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.14)}
+.totop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:11.5px;color:var(--ink3)}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--panel)}
 .fundgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px;align-items:start}
 @media (max-width:900px){.fundgrid{grid-template-columns:minmax(0,1fr)}}
 .form{display:grid;gap:10px;padding:14px}
@@ -183,7 +188,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
       <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg></div>
       <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span></div>
       <div class="filters">
-        <input id="q" type="search" placeholder="Search name or number" aria-label="Search water points">
+        <input id="q" type="search" placeholder="Search name or number (press / )" aria-label="Search water points">
         <select id="sub" aria-label="Sub-county"><option value="">All sub-counties</option></select>
       </div>
       <div class="list" id="list" role="listbox" aria-label="Priority list"></div>
@@ -241,6 +246,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 
 <p class="foot">Scenario results on synthetic data. Kijana District is fictional. No score here shows that water is safe to drink; only a lab test can.</p>
 <div id="toastbox"></div>
+<button class="totop" id="totop" type="button" hidden>↑ Back to top</button>
 
 <script>
 const PTS = __DATA__;
@@ -841,11 +847,23 @@ function show(v, jump) {
   try { localStorage.setItem("as-view", v); } catch (e) {}
   if (jump) window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
+const goTop = () => window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+$("#totop").addEventListener("click", goTop);
+window.addEventListener("scroll", () => { $("#totop").hidden = window.scrollY < 700; }, { passive: true });
+const intoView = el => el && el.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, select, textarea, [contenteditable]") || $("#v-officer").hidden) return;
+  if (e.key === "/") { e.preventDefault(); $("#q").focus(); return; }
+  if (e.key !== "j" && e.key !== "k") return;
+  const ids = [...document.querySelectorAll("#list .row")].map(r => r.dataset.id); if (!ids.length) return;
+  const i = ids.indexOf(sel); sel = ids[Math.max(0, Math.min(ids.length - 1, i + (e.key === "j" ? 1 : -1)))]; editing = false; renderOfficer();
+  const r = document.querySelector(`#list .row[data-id="${sel}"]`); if (r) r.scrollIntoView({ block: "nearest" });
+});
 document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view, true); });
 $("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer", true); renderOfficer(); });
-$("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); });
-$("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); } });
-$("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
+$("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); intoView(document.querySelector(".filters")); });
+$("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
+$("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
 $("#q").addEventListener("input", () => { shown = 60; renderOfficer(); });
 $("#sub").addEventListener("change", () => { shown = 60; renderOfficer(); });
 $("#detail").addEventListener("click", e => {
