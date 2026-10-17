@@ -1,0 +1,471 @@
+<title>AquaSentinel Console</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a district water office console. Top bar with views; officer view = map + priority list on the left, the selected water point's assessment on the right. Phone view = a feature phone beside an event log. */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --ink:#15272d; --ink2:#4c5f66; --ink3:#7b8b90; --line:#dbe2e1; --wash:#eaf0ee;
+  --accent:#0f5e6e; --accent-ink:#ffffff; --ochre:#a3561f;
+  --crit:#b3261e; --crit-bg:#fbe9e7; --risk:#a15c00; --risk-bg:#fdf0dc; --watch:#2c5f9e; --watch-bg:#e6eef9; --good:#2e7d4f; --good-bg:#e5f3ea;
+  --font:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1719; --panel:#152225; --ink:#e4ecec; --ink2:#a9b9bb; --ink3:#7d8f92; --line:#26383c; --wash:#1b2b2f;
+  --accent:#5fb3c2; --accent-ink:#06262c; --ochre:#e3a26f;
+  --crit:#f2867d; --crit-bg:#3a1a18; --risk:#f0b45c; --risk-bg:#382810; --watch:#8fb5ea; --watch-bg:#17263a; --good:#7fcf9c; --good-bg:#13301f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1719; --panel:#152225; --ink:#e4ecec; --ink2:#a9b9bb; --ink3:#7d8f92; --line:#26383c; --wash:#1b2b2f;
+  --accent:#5fb3c2; --accent-ink:#06262c; --ochre:#e3a26f;
+  --crit:#f2867d; --crit-bg:#3a1a18; --risk:#f0b45c; --risk-bg:#382810; --watch:#8fb5ea; --watch-bg:#17263a; --good:#7fcf9c; --good-bg:#13301f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding-block:14px 12px;border-bottom:1px solid var(--line)}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand b{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.brand span{font-size:12px;color:var(--ink3)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{border:1px solid transparent;background:none;padding:7px 12px;border-radius:6px;cursor:pointer;color:var(--ink2);font-weight:500}
+nav button[aria-current="true"]{background:var(--panel);border-color:var(--line);color:var(--ink)}
+nav button:focus-visible,.btn:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sync{margin-left:auto;font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink3)}
+.dot.on{background:var(--good)}
+.view{padding-top:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer;text-align:left}
+.kpi[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.kpi .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--ink2)}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0}
+.panel h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600;margin:0}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mapwrap{padding:8px 10px 4px}
+#map{width:100%;height:auto;max-height:420px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink2);padding:0 14px 10px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.filters input,.filters select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 8px;min-width:0}
+.filters input{flex:1 1 160px}
+.list{max-height:560px;overflow:auto}
+.row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+.row:hover{background:var(--wash)}
+.row[aria-selected="true"]{background:var(--wash);box-shadow:inset 3px 0 0 var(--accent)}
+.sc{font-family:var(--mono);font-weight:500;font-size:16px;text-align:center;border-radius:6px;padding:3px 0}
+.nm{min-width:0}
+.nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm small{color:var(--ink3);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.chip{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;white-space:nowrap;letter-spacing:.02em}
+.b-Critical{background:var(--crit-bg);color:var(--crit)} .b-At.risk{background:var(--risk-bg);color:var(--risk)}
+.b-risk{background:var(--risk-bg);color:var(--risk)} .b-Watch{background:var(--watch-bg);color:var(--watch)} .b-Good{background:var(--good-bg);color:var(--good)}
+.c-nw{background:var(--crit);color:var(--panel)} .c-ok{background:var(--good-bg);color:var(--good)} .c-no{background:var(--wash);color:var(--ink2)} .c-low{background:var(--wash);color:var(--ink2);border:1px dashed var(--ink3)}
+.more{display:block;width:100%;padding:10px;border:0;background:none;color:var(--accent);cursor:pointer;font-weight:600}
+.detail{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+.dhead{display:flex;gap:16px;align-items:flex-start}
+.big{font-family:var(--mono);font-size:40px;font-weight:500;line-height:1;min-width:84px;text-align:center;padding:10px 8px;border-radius:10px}
+.big small{display:block;font-size:12px;font-family:var(--font);font-weight:600;margin-top:6px}
+.dhead h3{margin:0 0 4px;font-size:20px;line-height:1.2;text-wrap:balance}
+.meta{color:var(--ink2);font-size:13px}
+.dims{display:grid;gap:8px}
+.dim{display:grid;grid-template-columns:120px minmax(0,1fr) 48px;gap:10px;align-items:center;font-size:13px}
+.bar{height:8px;background:var(--wash);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.dim .n{font-family:var(--mono);text-align:right;color:var(--ink2)}
+.sec h4{margin:0 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.why{margin:0;padding-left:18px;color:var(--ink2);font-size:13px;display:grid;gap:3px}
+.acts{display:grid;gap:6px}
+.acts label{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.sms{border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:10px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap}
+textarea.sms{width:100%;min-height:86px;resize:vertical}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:600}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.warn{color:var(--crit)}
+.btn:disabled{opacity:.5;cursor:default}
+.decided{padding:10px 12px;border-radius:8px;font-size:13px}
+.decided.ok{background:var(--good-bg);color:var(--good)} .decided.no{background:var(--crit-bg);color:var(--crit)}
+.note{font-size:12px;color:var(--ink3)}
+.empty{padding:24px;color:var(--ink3);text-align:center}
+/* phone */
+.phonegrid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.phonegrid{grid-template-columns:minmax(0,1fr)}}
+.phone{background:#1d2a2e;border-radius:34px;padding:18px 16px 22px;max-width:340px;width:100%;margin-inline:auto;box-shadow:0 1px 0 var(--line)}
+.screen{background:#c9d8c7;color:#17261a;border-radius:10px;height:390px;display:flex;flex-direction:column;font-family:var(--mono);font-size:12.5px;overflow:hidden}
+.scr-h{background:#9fb59c;padding:6px 10px;display:flex;justify-content:space-between;font-size:11px}
+.thread{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:6px}
+.msg{padding:6px 8px;border-radius:6px;max-width:92%;white-space:pre-wrap;word-break:break-word}
+.msg.in{background:#e8f1e5;align-self:flex-start}
+.msg.out{background:#17261a;color:#e8f1e5;align-self:flex-end}
+.msg small{display:block;opacity:.65;font-size:10px;margin-top:2px}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.keys button{background:#2f4247;color:#e4ecec;border:0;border-radius:10px;padding:10px 0;font-weight:700;font-size:12px;cursor:pointer;font-family:var(--mono)}
+.compose{display:flex;gap:6px;margin-top:8px}
+.compose input{flex:1;min-width:0;border-radius:8px;border:0;padding:9px;background:#e4ecec;color:#17261a;font-family:var(--mono)}
+.compose button{border:0;border-radius:8px;background:#5fb3c2;color:#06262c;font-weight:700;padding:0 12px;cursor:pointer}
+.who{display:grid;gap:6px;margin-bottom:14px}
+.who select{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:8px}
+.log{list-style:none;margin:0;padding:0}
+.log li{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px;display:grid;gap:2px}
+.log li small{color:var(--ink3)}
+/* receipt */
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:12px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tot{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;padding:14px}
+.tot div{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.tot b{display:block;font-family:var(--mono);font-size:20px}
+.foot{margin-top:18px;font-size:12px;color:var(--ink3)}
+.toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;max-width:340px;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+@media (prefers-reduced-motion:no-preference){.toast{animation:up .25s ease-out}@keyframes up{from{transform:translateY(8px);opacity:0}}}
+.scroll-x{overflow-x:auto}
+</style>
+
+<header class="top">
+  <div class="brand"><b>AquaSentinel</b><span>Kijana District water office · scenario date 30 Sep 2026 · synthetic data</span></div>
+  <nav aria-label="Views">
+    <button data-view="officer" aria-current="true">Water officer</button>
+    <button data-view="phone">Committee phone</button>
+    <button data-view="receipt">Receipt</button>
+  </nav>
+  <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Connecting…</span></div>
+</header>
+
+<section class="view" id="v-officer">
+  <div class="kpis" id="kpis"></div>
+  <div class="grid">
+    <div class="panel">
+      <div class="ph"><h2>Water points</h2><button class="btn" id="scan">Run weekly scan</button></div>
+      <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg></div>
+      <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span></div>
+      <div class="filters">
+        <input id="q" type="search" placeholder="Search name or number" aria-label="Search water points">
+        <select id="sub" aria-label="Sub-county"><option value="">All sub-counties</option></select>
+      </div>
+      <div class="list" id="list" role="listbox" aria-label="Priority list"></div>
+    </div>
+    <div class="panel" id="detail"></div>
+  </div>
+</section>
+
+<section class="view" id="v-phone" hidden>
+  <div class="phonegrid">
+    <div>
+      <div class="who"><label for="ident" class="note">Whose phone is this?</label><select id="ident"></select><span class="note" id="identnote"></span></div>
+      <div class="phone">
+        <div class="screen"><div class="scr-h"><span id="scrname">Messages</span><span>Kijana Water Line</span></div><div class="thread" id="thread"></div></div>
+        <div class="keys"><button data-q="OK">OK</button><button data-q="BROKEN">BROKEN</button><button data-q="DRY">DRY</button><button data-q="DIRTY">DIRTY</button></div>
+        <form class="compose" id="compose"><input id="msgin" autocomplete="off" placeholder="Type a message" aria-label="Message"><button type="submit">Send</button></form>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>What the system did</h2></div>
+      <ul class="log" id="log"></ul>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="v-receipt" hidden>
+  <div class="panel">
+    <div class="ph"><h2>Running receipt · every metered action</h2><span class="note">Metered on the Agentic Commerce Infra (simulated in this build)</span></div>
+    <div class="tot" id="tot"></div>
+    <div class="scroll-x"><table><thead><tr><th>When</th><th>What</th><th>Water point</th><th class="r">Units</th><th class="r">Cost</th></tr></thead><tbody id="ledger"></tbody></table></div>
+  </div>
+</section>
+
+<p class="foot">Scenario results on synthetic data. Kijana District is fictional. No score here shows that water is safe to drink; only a lab test can.</p>
+<div id="toastbox"></div>
+
+<script>
+const PTS = __DATA__;
+const BY = Object.fromEntries(PTS.map(p => [p.id, p]));
+const PRICE = { call: 0.001, sms: 0.02 };
+const PHONES = [
+  { id: "ph-0631", label: "Olagoni committee chair", num: "+000 555 0631 (demo)", wps: ["KJ-WP-0631"] },
+  { id: "ph-0151", label: "Olango committee chair", num: "+000 555 0151 (demo)", wps: ["KJ-WP-0151"] },
+  { id: "ph-0143", label: "Shared phone, Olandewe (two water points)", num: "+000 555 0143 (demo)", wps: ["KJ-WP-0069", "KJ-WP-0143"] },
+  { id: "ph-anon", label: "Unregistered number", num: "+000 555 9999 (demo)", wps: [] }
+];
+const S = { decisions: {}, status: {}, inbox: {}, outbox: {}, ledger: {} };
+let db = null, sel = PTS.find(p => p.st !== "Functional").id, filter = "nw", shown = 60, editing = false, seenInbox = null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const short = id => id.slice(-4);
+const usd = v => "$" + (Math.abs(v) >= 1 || v === 0 ? v.toFixed(2) : v.toFixed(3));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+const when = t => { const d = new Date(t); return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
+
+// ---------- scoring (mirrors score.py; five dimensions, 20 points each)
+function view(p) {
+  const ov = S.status[p.id];
+  let st = p.st, age = p.age, src = p.ss, D = p.D, conf;
+  if (ov && ov.status) { st = ov.status; age = 0; src = "committee SMS (live)"; }
+  if (ov && ov.dirty) D = Math.min(D, 6.7);
+  let A = st === "Functional" ? 20 : st === "Seasonal (dry)" ? 8.6 : 0;
+  if (st === "Functional" && age > 365) A = 14.3;
+  if (st === "Functional" && age > 730) A = 10.3;
+  if (ov) conf = "High"; else conf = age <= 180 ? "High" : (age <= 540 || p.m12 > 0) ? "Medium" : "Low";
+  const dims = [A, p.B, p.C, D, p.E];
+  const score = Math.round(dims.reduce((a, b) => a + b, 0));
+  const band = score < 40 ? "Critical" : score < 60 ? "At risk" : score < 80 ? "Watch" : "Good";
+  const nw = st !== "Functional";
+  const acts = [];
+  if (nw && p.oj === 0) acts.push({ k: "dispatch", t: `Send mechanic ${p.mech || "(none assigned)"}${p.tw != null ? ` (about ${p.tw} min in the wet season)` : ""}` });
+  if (p.oj > 0) acts.push({ k: "chase", t: `Follow up the open job card (${p.oj} open)` });
+  if (D <= 6.7) acts.push({ k: "boil", t: "Boil-water advice now, then an E. coli retest" });
+  if (conf === "Low") acts.push({ k: "inspect", t: "Inspect: no fresh evidence for this point" });
+  if (p.C <= 5.3 && p.tm) acts.push({ k: "committee", t: "Committee support on tariff and savings" });
+  if (p.E <= 10.7) acts.push({ k: "dry", t: "Watch for seasonal drying" });
+  if (p.gi && p.bk >= 4) acts.push({ k: "main", t: "Plan rising-main replacement (GI pipe, frequent breakdowns)" });
+  return { st, age, src, conf, dims, score, band, nw, acts, dirty: !!(ov && ov.dirty) };
+}
+function why(p, v) {
+  const out = [];
+  out.push(`Status: ${v.st}, from ${v.src}${v.age ? `, ${v.age} days old` : ", just now"}.`);
+  out.push(`${p.bk} breakdowns since 2021${p.mr != null ? `, median repair ${p.mr} days` : ""}.`);
+  out.push(p.tm ? `Committee: ${p.tm.toLowerCase()}, savings ${p.sav != null ? "$" + p.sav : "unknown"}${p.sa === "yes" ? ", in the service agreement" : ""}.` : "Run by a scheme operator, not a committee.");
+  out.push(p.qd ? `Last water test ${p.qd}: E. coli ${p.ec ?? "n/a"}${p.fl != null ? `, fluoride ${p.fl} mg/l` : ""}.` : "No water test on record.");
+  if (v.dirty) out.push("A committee reported dirty water by SMS.");
+  out.push(`Rain in ${p.sc} over the last 6 months: ${p.ra > 0 ? "+" : ""}${p.ra}% against normal.`);
+  return out;
+}
+function smsFor(p, v, acts) {
+  const s = short(p.id), parts = [`WATER ALERT ${s} ${p.n}:`];
+  if (v.st === "Non-functional") parts.push("reported not working.");
+  else if (v.st === "Seasonal (dry)") parts.push("reported dry.");
+  else if (v.conf === "Low") parts.push("we have no recent report.");
+  else parts.push(`score ${v.score}/100.`);
+  if (acts.some(a => a.k === "dispatch")) parts.push(`Mechanic ${p.mech} is being sent.`);
+  if (acts.some(a => a.k === "chase")) parts.push("Your repair is being followed up.");
+  if (acts.some(a => a.k === "boil")) parts.push("Boil drinking water until it is retested.");
+  if (v.conf === "Low") parts.push("Please tell us if it is working.");
+  parts.push(`Reply ${s} OK, BROKEN, DRY or DIRTY.`);
+  return parts.join(" ");
+}
+
+// ---------- store (shared via db; in-page memory if db is unavailable)
+async function put(col, id, data) {
+  if (db) { try { await db.collection(col).doc(id).set(data); return; } catch (e) { toast("Could not save: " + (e && e.code || "error")); } }
+  S[col][id] = data; render();
+}
+async function meter(item, wp, units, unitPrice) { await put("ledger", uid(), { item, wp: wp || "", units, cost: +(units * unitPrice).toFixed(4), at: Date.now() }); }
+
+// ---------- officer view
+const pts = () => PTS.map(p => ({ p, v: view(p) }));
+function kpis(all) {
+  const dec = Object.values(S.decisions);
+  const k = [
+    ["nw", "Not working", all.filter(x => x.v.nw).length],
+    ["crit", "Critical", all.filter(x => x.v.band === "Critical").length],
+    ["risk", "At risk", all.filter(x => x.v.band === "At risk").length],
+    ["silent", "Silent points", all.filter(x => x.v.conf === "Low").length],
+    ["todo", "Awaiting decision", all.filter(x => (x.v.nw || x.v.band === "Critical") && !S.decisions[x.p.id]).length],
+    ["done", "Approved", dec.filter(d => d.decision === "approved").length],
+    ["all", "All points", all.length]
+  ];
+  $("#kpis").innerHTML = k.map(([f, l, n]) => `<button class="kpi" data-f="${f}" aria-pressed="${filter === f}"><div class="v">${n.toLocaleString()}</div><div class="l">${l}</div></button>`).join("");
+}
+function filtered(all) {
+  const q = $("#q").value.trim().toLowerCase(), sub = $("#sub").value;
+  return all.filter(({ p, v }) => {
+    if (sub && p.sc !== sub) return false;
+    if (q && !(p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))) return false;
+    if (filter === "nw") return v.nw;
+    if (filter === "crit") return v.band === "Critical";
+    if (filter === "risk") return v.band === "At risk";
+    if (filter === "silent") return v.conf === "Low";
+    if (filter === "todo") return (v.nw || v.band === "Critical") && !S.decisions[p.id];
+    if (filter === "done") return S.decisions[p.id] && S.decisions[p.id].decision === "approved";
+    return true;
+  }).sort((a, b) => (b.v.nw - a.v.nw) || (a.v.score - b.v.score));
+}
+const bandVar = b => ({ Critical: "--crit", "At risk": "--risk", Watch: "--watch", Good: "--good" }[b]);
+const bandCls = b => b === "At risk" ? "b-risk" : "b-" + b;
+function listHTML(rows) {
+  if (!rows.length) return `<div class="empty">No water points match.</div>`;
+  return rows.slice(0, shown).map(({ p, v }) => {
+    const d = S.decisions[p.id];
+    return `<button class="row" role="option" data-id="${p.id}" aria-selected="${p.id === sel}">
+      <span class="sc ${bandCls(v.band)}">${v.score}</span>
+      <span class="nm"><b>${esc(p.n)}</b><small><span class="mono">${short(p.id)}</span> · ${p.sc} · ${esc(v.acts[0] ? v.acts[0].t : "No action")}</small></span>
+      <span class="chips">${v.nw ? `<span class="chip c-nw">Not working</span>` : ""}${v.conf === "Low" ? `<span class="chip c-low">Silent</span>` : ""}${d ? `<span class="chip ${d.decision === "approved" ? "c-ok" : "c-no"}">${d.decision === "approved" ? "Approved" : "Rejected"}</span>` : ""}</span>
+    </button>`;
+  }).join("") + (rows.length > shown ? `<button class="more" id="more">Show ${Math.min(60, rows.length - shown)} more of ${rows.length - shown}</button>` : "");
+}
+let proj = null;
+function mapHTML(all) {
+  if (!proj) {
+    const g = PTS.filter(p => p.la != null);
+    const x0 = Math.min(...g.map(p => p.lo)), x1 = Math.max(...g.map(p => p.lo)), y0 = Math.min(...g.map(p => p.la)), y1 = Math.max(...g.map(p => p.la));
+    const W = 600, H = Math.round(W * (y1 - y0) / (x1 - x0)) || 400;
+    proj = { W, H, f: p => [8 + (p.lo - x0) / (x1 - x0) * (W - 16), 8 + (y1 - p.la) / (y1 - y0) * (H - 16)] };
+    $("#map").setAttribute("viewBox", `0 0 ${W} ${H}`);
+  }
+  const ordered = all.filter(x => x.p.la != null).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
+  return ordered.map(({ p, v }) => {
+    const [x, y] = proj.f(p), s = p.id === sel;
+    return `<circle data-id="${p.id}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${s ? 7 : v.nw ? 3.6 : 2.6}" fill="var(${bandVar(v.band)})" ${v.nw || s ? `stroke="var(--ink)" stroke-width="${s ? 2.5 : 1}"` : ""} style="cursor:pointer"><title>${esc(p.n)} · ${v.score}</title></circle>`;
+  }).join("");
+}
+function detailHTML() {
+  const p = BY[sel]; if (!p) return `<div class="empty">Choose a water point.</div>`;
+  const v = view(p), d = S.decisions[p.id];
+  const names = ["Working now", "Reliability", "Committee", "Water quality", "Water supply"];
+  const dims = v.dims.map((x, i) => `<div class="dim"><span>${names[i]}</span><span class="bar"><i style="width:${Math.max(2, x / 20 * 100)}%"></i></span><span class="n">${x.toFixed(1)}/20</span></div>`).join("");
+  const acts = v.acts.length ? v.acts.map((a, i) => `<label><input type="checkbox" data-a="${i}" checked ${d ? "disabled" : ""}> <span>${esc(a.t)}</span></label>`).join("") : `<p class="note">No action suggested.</p>`;
+  const sms = d ? d.sms : smsFor(p, v, v.acts);
+  const decided = d ? `<div class="decided ${d.decision === "approved" ? "ok" : "no"}">${d.decision === "approved" ? "Approved" : "Rejected"} at ${when(d.at)}.${d.decision === "approved" ? " SMS sent to the committee; actions logged." : ""}${d.note ? " Note: " + esc(d.note) : ""}</div><div class="btns"><button class="btn" id="reopen">Reopen</button></div>` :
+    `<div class="btns"><button class="btn pri" id="approve">Approve and send</button><button class="btn" id="edit">${editing ? "Done editing" : "Edit message"}</button><button class="btn warn" id="reject">Reject</button></div><p class="note">Nothing goes out until you approve. Your decision is recorded.</p>`;
+  return `<div class="detail">
+    <div class="dhead"><div class="big ${bandCls(v.band)}">${v.score}<small>${v.band}</small></div>
+      <div><h3>${esc(p.n)}</h3><div class="meta"><span class="mono">${p.id}</span> · ${p.sc} · ${esc(p.ty)}${p.pop ? ` · village of ${p.pop.toLocaleString()}` : ""}${p.net ? ` · signal ${p.net}` : ""}</div>
+      <div class="chips" style="justify-content:flex-start;margin-top:8px">${v.nw ? `<span class="chip c-nw">Not working</span>` : `<span class="chip c-ok">Working</span>`}<span class="chip c-no">Confidence: ${v.conf}</span></div></div></div>
+    <div class="dims">${dims}</div>
+    <div class="sec"><h4>Why</h4><ul class="why">${why(p, v).map(w => `<li>${esc(w)}</li>`).join("")}</ul></div>
+    <div class="sec"><h4>Suggested actions</h4><div class="acts" id="acts">${acts}</div></div>
+    <div class="sec"><h4>SMS to the committee</h4>${editing && !d ? `<textarea class="sms" id="smsedit" aria-label="SMS text">${esc(sms)}</textarea>` : `<div class="sms" id="smstext">${esc(sms)}</div>`}</div>
+    ${decided}
+  </div>`;
+}
+function renderOfficer() {
+  const all = pts();
+  kpis(all);
+  const rows = filtered(all);
+  $("#list").innerHTML = listHTML(rows);
+  $("#map").innerHTML = mapHTML(all);
+  $("#detail").innerHTML = detailHTML();
+}
+async function decide(kind) {
+  const p = BY[sel], v = view(p);
+  const chosen = [...document.querySelectorAll("#acts input")].filter(i => i.checked).map(i => v.acts[+i.dataset.a]);
+  const sms = $("#smsedit") ? $("#smsedit").value : smsFor(p, v, chosen);
+  const at = Date.now();
+  editing = false;
+  await put("decisions", p.id, { decision: kind, actions: chosen.map(a => a.t), sms, score: v.score, at });
+  if (kind === "approved") {
+    await put("outbox", uid(), { wp: p.id, text: sms, kind: "alert", at });
+    await meter("Officer-approved SMS alert", p.id, 1, PRICE.sms);
+    if (chosen.some(a => a.k === "dispatch")) await meter(`Job card sent to mechanic ${p.mech}`, p.id, 1, PRICE.sms);
+    toast(`Approved. Alert sent to the ${short(p.id)} committee.`);
+  } else toast(`Rejected. Nothing sent for ${short(p.id)}.`);
+}
+
+// ---------- phone
+let ident = PHONES[0].id;
+function renderPhone() {
+  const ph = PHONES.find(x => x.id === ident);
+  $("#identnote").textContent = ph.num + (ph.wps.length ? " · linked to " + ph.wps.map(short).join(" and ") : " · not linked to any water point");
+  $("#scrname").textContent = ph.label.split(",")[0];
+  const msgs = [];
+  for (const o of Object.values(S.outbox)) if ((o.kind === "alert" && ph.wps.includes(o.wp)) || o.phone === ph.id) msgs.push({ dir: "in", text: o.text, at: o.at });
+  for (const m of Object.values(S.inbox)) if (m.phone === ph.id) msgs.push({ dir: "out", text: m.text, at: m.at });
+  msgs.sort((a, b) => a.at - b.at);
+  $("#thread").innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${m.dir}">${esc(m.text)}<small>${when(m.at)}</small></div>`).join("") : `<div class="msg in">No messages yet. Approve an alert in the officer view, or send a report.</div>`;
+  $("#thread").scrollTop = 1e6;
+  const ev = Object.values(S.inbox).sort((a, b) => b.at - a.at).slice(0, 30);
+  $("#log").innerHTML = ev.length ? ev.map(m => `<li><b>${esc(m.result)}</b><span>“${esc(m.text)}” from ${esc((PHONES.find(x => x.id === m.phone) || {}).label || m.phone)}</span><small>${when(m.at)}</small></li>`).join("") : `<li><span class="note">Reports from committees will appear here with what the system did with each one.</span></li>`;
+}
+function parse(text) {
+  const t = text.toLowerCase();
+  const code = (text.match(/\b(\d{4})\b/) || [])[1];
+  let kind = null;
+  if (/\b(dirty|chafu|kutu|rust|smell|colou?r)\b/.test(t)) kind = "dirty";
+  else if (/\b(dry|kimekauka|imekauka)\b/.test(t)) kind = "dry";
+  else if (/\b(broken|broke|mbovu|imeharibika|not working|no water|hakuna maji)\b/.test(t)) kind = "broken";
+  else if (/\b(ok|sawa|working|fixed|imetengenezwa)\b/.test(t)) kind = "ok";
+  return { code, kind };
+}
+async function send(text) {
+  text = text.trim(); if (!text) return;
+  const ph = PHONES.find(x => x.id === ident), at = Date.now();
+  const { code, kind } = parse(text);
+  let wp = code && BY["KJ-WP-" + code] ? "KJ-WP-" + code : null, reply, result;
+  if (!wp && ph.wps.length === 1) wp = ph.wps[0];
+  if (!wp && ph.wps.length > 1) { reply = `This number covers more than one water point. Reply with the number first, for example ${short(ph.wps[0])} ${kind ? kind.toUpperCase() : "BROKEN"} or ${short(ph.wps[1])} ${kind ? kind.toUpperCase() : "BROKEN"}.`; result = "Asked which water point"; }
+  else if (!wp) { reply = "Thank you. Please add the 4-digit number painted on the pump, for example 0631 BROKEN."; result = "Asked for the water point number"; }
+  else if (!kind) { reply = `Thank you. For ${short(wp)} please reply OK, BROKEN, DRY or DIRTY.`; result = `Unclear report for ${short(wp)}`; }
+  else {
+    const cur = S.status[wp] || {};
+    const next = { ...cur, at, src: "committee SMS" };
+    if (kind === "ok") { next.status = "Functional"; next.dirty = false; }
+    if (kind === "broken") next.status = "Non-functional";
+    if (kind === "dry") next.status = "Seasonal (dry)";
+    if (kind === "dirty") next.dirty = true;
+    await put("status", wp, next);
+    const v = view(BY[wp]);
+    const label = { ok: "working", broken: "not working", dry: "dry", dirty: "dirty water" }[kind];
+    reply = `Thank you. ${short(wp)} recorded as ${label}. The district water officer can see it now.${kind === "dirty" ? " Boil drinking water until it is tested." : ""}`;
+    result = `${short(wp)} ${BY[wp].n}: ${label}. New score ${v.score}/100${v.nw ? ", flagged Not working" : ""}.`;
+  }
+  await put("inbox", uid(), { phone: ph.id, text, wp: wp || "", result, at });
+  await put("outbox", uid(), { phone: ph.id, text: reply, kind: "reply", at: at + 1 });
+  await meter("Inbound SMS (reverse-billed)", wp, 1, PRICE.sms);
+  await meter("Reply SMS", wp, 1, PRICE.sms);
+  if (wp && kind) await meter("Rescore water point", wp, 1, PRICE.call);
+}
+
+// ---------- receipt
+function renderReceipt() {
+  const L = Object.values(S.ledger).sort((a, b) => b.at - a.at);
+  const sum = f => L.filter(f).reduce((a, x) => a + x.cost, 0);
+  const total = sum(() => true);
+  $("#tot").innerHTML = [
+    ["Total so far", total], ["Scoring and agent calls", sum(x => /scan|Rescore/i.test(x.item))], ["SMS", sum(x => /SMS|Job card/i.test(x.item))]
+  ].map(([l, v]) => `<div><span class="note">${l}</span><b>${usd(v)}</b></div>`).join("") + `<div><span class="note">Entries</span><b>${L.length}</b></div>`;
+  $("#ledger").innerHTML = L.length ? L.slice(0, 200).map(x => `<tr><td class="mono">${when(x.at)}</td><td>${esc(x.item)}</td><td class="mono">${x.wp ? short(x.wp) : "All"}</td><td class="r">${x.units.toLocaleString()}</td><td class="r">${usd(x.cost)}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">No metered actions yet. Run the weekly scan or approve an alert.</td></tr>`;
+}
+
+// ---------- wiring
+function render() { renderOfficer(); renderPhone(); renderReceipt(); }
+function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; $("#toastbox").replaceChildren(el); setTimeout(() => el.remove(), 4200); }
+function show(v) {
+  for (const b of document.querySelectorAll("nav button")) b.setAttribute("aria-current", String(b.dataset.view === v));
+  for (const s of document.querySelectorAll(".view")) s.hidden = s.id !== "v-" + v;
+  try { localStorage.setItem("as-view", v); } catch (e) {}
+}
+document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
+$("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); });
+$("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); } });
+$("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
+$("#q").addEventListener("input", () => { shown = 60; renderOfficer(); });
+$("#sub").addEventListener("change", () => { shown = 60; renderOfficer(); });
+$("#detail").addEventListener("click", e => {
+  if (e.target.id === "approve") decide("approved");
+  if (e.target.id === "reject") decide("rejected");
+  if (e.target.id === "edit") { editing = !editing; renderOfficer(); }
+  if (e.target.id === "reopen") { if (db) db.collection("decisions").doc(sel).delete().catch(() => {}); else { delete S.decisions[sel]; render(); } }
+});
+$("#scan").addEventListener("click", async () => { await meter("Weekly scan: score every water point", "", PTS.length, PRICE.call); toast(`Scanned ${PTS.length.toLocaleString()} water points. Cost ${usd(PTS.length * PRICE.call)}.`); });
+$("#ident").innerHTML = PHONES.map(p => `<option value="${p.id}">${esc(p.label)}</option>`).join("");
+$("#ident").addEventListener("change", e => { ident = e.target.value; renderPhone(); });
+document.querySelector(".keys").addEventListener("click", e => { const b = e.target.closest("button"); if (b) send(b.dataset.q); });
+$("#compose").addEventListener("submit", e => { e.preventDefault(); const v = $("#msgin").value; $("#msgin").value = ""; send(v); });
+$("#sub").insertAdjacentHTML("beforeend", [...new Set(PTS.map(p => p.sc))].sort().map(s => `<option>${s}</option>`).join(""));
+try { const v = localStorage.getItem("as-view"); if (v && document.getElementById("v-" + v)) show(v); } catch (e) {}
+const hv = location.hash.slice(1); if (hv && document.getElementById("v-" + hv)) show(hv);
+render();
+
+(async () => {
+  try { db = window.claude && claude.use ? await claude.use("db") : null; } catch (e) { db = null; }
+  if (!db) { $("#synctext").textContent = "Offline demo: changes stay in this tab"; return; }
+  $("#syncdot").classList.add("on"); $("#synctext").textContent = "Live: shared with everyone on this page";
+  for (const col of Object.keys(S)) {
+    db.collection(col).onSnapshot(snap => {
+      const m = {}; for (const d of snap.docs) m[d.id] = d.data();
+      S[col] = m;
+      if (col === "inbox") {
+        const ids = Object.keys(m);
+        if (seenInbox) for (const id of ids) if (!seenInbox.has(id) && m[id].wp) toast("New report: " + m[id].result);
+        seenInbox = new Set(ids);
+      }
+      render();
+    }, () => { $("#syncdot").classList.remove("on"); $("#synctext").textContent = "Connection lost: reload to resume"; });
+  }
+})();
+</script>

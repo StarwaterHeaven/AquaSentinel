@@ -1,0 +1,8 @@
+# The Kijana data pack belongs to the hackathon organisers: keep it local, never commit it.
+data/*
+!data/README.md
+# Generated from the data pack
+out/
+__pycache__/
+.DS_Store
+.venv/
