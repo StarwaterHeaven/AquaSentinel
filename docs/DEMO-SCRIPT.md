@@ -10,20 +10,20 @@ Presenter: **Vladyslav**. Committee phone: **Ruth**, if she is there. Otherwise 
    Both must be in the same browser so they stay in sync.
 2. In window A press **Reset demo** (top right), so Olagoni is not yet approved.
 3. Have the flood messages CSV on the desktop if the organisers released it.
-4. Deck open as PDF: `docs/AquaSentinel-TeamOcean-deck.pdf` (slides are numbered below).
-5. Fallback if the Wi-Fi fails: the same page opens from a local copy (`out/site/index.html` after `python app/build.py`), or present from the deck alone; slide 15 lists the real Qatom transaction IDs.
+4. Deck open as PDF: `docs/AquaSentinel-TeamOcean-deck.pdf`. Slides 1–6 are the pitch; 7–21 are the appendix.
+5. Fallback if the Wi-Fi fails: the same page opens from a local copy (`out/site/index.html` after `python app/build.py`), or present from the deck alone; slide 4 lists the real Qatom transaction IDs.
 
-## Timing
+## Timing (pitch deck slides 1–6; slides 7–21 are the appendix for questions)
 
 | Time | Slide or screen | What to say (your own words are fine) |
 |---|---|---|
-| 0:00–0:30 | 1 Cover | "AquaSentinel gives every water point in Kijana District a score out of 100, puts the broken ones first, and makes every action and every dollar traceable." |
-| 0:30–1:15 | 2 Stakes, 3 Problem | "About a third of the district's 1,042 water points are down. The register says 79% work, but its median record is 593 days old. A district-funded repair takes 84 days; a pooled-fund repair takes 0. The delay is about who pays, not who notices." |
-| 1:15–1:40 | 4 Which number we trust | "We trust 71% as a ceiling: 384 of the 'working' points have no fresh evidence. Until they're checked, the truth is between 65 and 71." |
-| 1:40–3:30 | **Live demo** (switch to the browser) | See the click path below. |
-| 3:30–4:00 | 8 How the score works, 10 People | "Five parts of 20, every reason shown. Not working always goes first. Joseph approves everything. Bibi Amina has no phone, so silence puts her pump on the inspection list instead of being read as 'working'." |
-| 4:00–4:30 | 12 Cost | "About $3.50 to $7.30 per water point per year. The whole district fits inside its existing monitoring budget line. Repairs get new money from sponsors through escrow, with a receipt for every dollar." |
-| 4:30–5:00 | 15 Build and testing | "Before anyone relies on it: backtest against the next inspection round, test the Swahili SMS with committees, pilot the plates in one sub-county." Close: "The data exists. The phones exist. What was missing is a list the officer can defend and money anyone can trace." |
+| 0:00–0:20 | 1 Cover | "AquaSentinel gives every water point in Kijana District a score out of 100, puts the broken ones first, and makes every action and every dollar traceable." |
+| 0:20–0:50 | 2 The problem | "By the newest evidence 71% of water points work; the register says 79%, but its median record is 593 days old. A district-funded repair takes 84 days; a pooled-fund repair takes 0. The delay is about who pays, not who notices." |
+| 0:50–1:20 | 3 What we built | One line per box: score, approve, text, prove. "Running now on all 1,078 water points. Let us show you." |
+| 1:20–3:20 | 4 Live demo (switch to the browser) | See the click path below. Leave slide 4 up while you switch; it is the backup if the browser fails. |
+| 3:20–4:05 | 5 In real life | "The officer owns it and approves everything. People like Bibi Amina, with no phone, are covered: silence puts the pump on the inspection round. About $3.50 to $7.30 per water point per year, inside the district's existing monitoring budget; sponsors fund repairs through escrow." |
+| 4:05–4:40 | 6 Before anyone relies on it | The three tests, then: "The data exists. The phones exist. We built the list the officer can defend and the money trail anyone can check." |
+| 4:40–5:00 | | "Thank you." Take questions; use the appendix (slide 7 onwards) for detail. |
 
 ## Live demo click path (about 2 minutes)
 
