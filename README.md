@@ -8,6 +8,8 @@ AquaSentinel gives every water point in Kijana District a score out of 100, puts
 
 **Live demo:** https://starwaterheaven.github.io/AquaSentinel/ (officer view; add `#phone` for the committee phone in a second window, `#funding` for funding and proof). Republish with `scripts/publish_pages.sh`.
 
+**Pitch deck (PDF):** [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf)
+
 ## How the score works
 
 Five dimensions, 20 points each:
