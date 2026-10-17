@@ -6,7 +6,7 @@ python scoring/score.py >/dev/null
 python scoring/export_points.py
 python app/build.py
 tmp=$(mktemp -d)
-cp out/site/index.html out/site/.nojekyll "$tmp"/
+cp out/site/index.html out/site/.nojekyll out/site/llms.txt "$tmp"/
 cd "$tmp"
 git init -q -b gh-pages
 git add -A

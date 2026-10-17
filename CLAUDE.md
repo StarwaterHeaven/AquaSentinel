@@ -1,5 +1,7 @@
 # Notes for AI assistants working in this repo
 
+Start with [llms.txt](llms.txt): the full skill for AI assistants working on this repo.
+
 - Read `docs/CONTRACT.md` before changing anything that crosses between scoring and the app. Keep field names stable.
 - The Kijana data pack lives in `data/` locally and must never be committed. Nothing in `out/` is committed either.
 - All data is synthetic. Never write text that presents a score or prediction as showing water is safe to drink.

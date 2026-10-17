@@ -21,4 +21,5 @@ head = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '</head><body>')
 (site / "index.html").write_text(head + page + "</body></html>")
 (site / ".nojekyll").write_text("")
+(site / "llms.txt").write_text((ROOT / "llms.txt").read_text())
 print("built out/site/index.html")
