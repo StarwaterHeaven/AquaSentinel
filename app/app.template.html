@@ -48,6 +48,7 @@ nav button:focus-visible,.btn:focus-visible,.row:focus-visible{outline:2px solid
 .ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .mapwrap{padding:8px 10px 4px}
 #map{width:100%;height:auto;max-height:420px;display:block}
+@media (prefers-reduced-motion:no-preference){.selmark .pulse{transform-box:fill-box;transform-origin:center;animation:pulse 1.6s ease-out infinite}@keyframes pulse{from{transform:scale(.6);opacity:1}to{transform:scale(1.6);opacity:0}}}
 .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink2);padding:0 14px 10px}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -181,6 +182,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
     <div class="panel">
       <div class="ph"><h2>Water points</h2><div class="btns"><label class="btn" for="csvin" style="display:inline-flex;align-items:center">Import messages (CSV)</label><input id="csvin" type="file" accept=".csv,text/csv" hidden><button class="btn" id="scan">Run weekly scan</button></div></div>
       <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg></div>
+      <div class="note" id="mapsel" style="padding:0 14px 6px"></div>
       <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span></div>
       <div class="filters">
         <input id="q" type="search" placeholder="Search name or number" aria-label="Search water points">
@@ -492,11 +494,24 @@ function mapHTML(all) {
     proj = { W, H, f: p => [8 + (p.lo - x0) / (x1 - x0) * (W - 16), 8 + (y1 - p.la) / (y1 - y0) * (H - 16)] };
     $("#map").setAttribute("viewBox", `0 0 ${W} ${H}`);
   }
-  const ordered = all.filter(x => x.p.la != null).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
-  return ordered.map(({ p, v }) => {
-    const [x, y] = proj.f(p), s = p.id === sel;
-    return `<circle data-id="${p.id}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${s ? 7 : v.nw ? 3.6 : 2.6}" fill="var(${bandVar(v.band)})" ${v.nw || s ? `stroke="var(--ink)" stroke-width="${s ? 2.5 : 1}"` : ""} style="cursor:pointer"><title>${esc(p.n)} · ${v.score}</title></circle>`;
+  const ordered = all.filter(x => x.p.la != null && x.p.id !== sel).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
+  const dots = ordered.map(({ p, v }) => {
+    const [x, y] = proj.f(p);
+    return `<circle data-id="${p.id}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${v.nw ? 3.6 : 2.6}" fill="var(${bandVar(v.band)})" ${v.nw ? `stroke="var(--ink)" stroke-width="1"` : ""} style="cursor:pointer"><title>${esc(p.n)} · ${v.score}</title></circle>`;
   }).join("");
+  // the selected water point is drawn last, on top, with crosshairs, a pulsing ring and its name
+  const sp = BY[sel];
+  if (!sp || sp.la == null) { $("#mapsel").textContent = sp ? `${short(sp.id)} ${sp.n}: no location on record` : ""; return dots; }
+  const sv = view(sp), [x, y] = proj.f(sp), right = x < proj.W - 170;
+  $("#mapsel").innerHTML = `Selected: <b>${esc(short(sp.id) + " " + sp.n)}</b> · ${sv.score}/100`;
+  return dots + `<g class="selmark" pointer-events="none">
+    <line x1="0" y1="${y.toFixed(1)}" x2="${proj.W}" y2="${y.toFixed(1)}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>
+    <line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${proj.H}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>
+    <circle class="pulse" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="var(${bandVar(sv.band)})" stroke="var(--panel)" stroke-width="2.5"/>
+    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="10" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+    <text x="${(right ? x + 16 : x - 16).toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${right ? "start" : "end"}" font-size="12" font-weight="700" fill="var(--ink)" stroke="var(--panel)" stroke-width="3" paint-order="stroke">${esc(short(sp.id) + " " + sp.n)}</text>
+  </g>`;
 }
 function detailHTML() {
   const p = BY[sel]; if (!p) return `<div class="empty">Choose a water point.</div>`;
