@@ -835,13 +835,14 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && notesOpen)
 
 function render() { renderOfficer(); renderPhone(); renderReceipt(); renderFunding(); renderNotes(); }
 function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; $("#toastbox").replaceChildren(el); setTimeout(() => el.remove(), 4200); }
-function show(v) {
+function show(v, jump) {
   for (const b of document.querySelectorAll("nav button")) b.setAttribute("aria-current", String(b.dataset.view === v));
   for (const s of document.querySelectorAll(".view")) s.hidden = s.id !== "v-" + v;
   try { localStorage.setItem("as-view", v); } catch (e) {}
+  if (jump) window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
-document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
-$("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer"); renderOfficer(); });
+document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view, true); });
+$("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer", true); renderOfficer(); });
 $("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); });
 $("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); } });
 $("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
