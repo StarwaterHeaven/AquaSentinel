@@ -697,6 +697,7 @@ function renderReceipt() {
 // ---------- wiring
 // ---------- notifications for the water officer
 // Derived from the live collections, so nothing new is stored. Only "last read" is kept, per viewer.
+const LOW_FUNDS = 0.2; // an escrow is "running low" at 20% of what it received
 const SEEN_KEY = "aqs-notes-seen";
 let notesSeen = 0, notesOpen = false;
 try { notesSeen = +localStorage.getItem(SEEN_KEY) || 0; } catch (e) {}
@@ -716,7 +717,13 @@ function notes() {
     if (n) out.push({ id: "i-" + id, wp, at: m.at, ...n });
   }
   for (const [id, f] of Object.entries(S.funds)) out.push({ id: "f-" + id, g: "money", go: "funding", at: f.at, t: `${usd(f.amount)} received from ${f.sponsor}`, sub: `${escName(f.wp)} · ${f.live ? "Live on Qatom" : "Simulated"}` });
-  for (const e of Object.values(escrowState())) if (e.in > 0 && e.in - e.spent < 0.0005) out.push({ id: "e-" + e.k, g: "money", go: "funding", at: e.spends.length ? e.spends[e.spends.length - 1].at : 0, t: `${escName(e.k)} is used up`, sub: `${usd(e.in)} in, ${usd(e.spent)} spent. Alerts and repairs now need new funding.` });
+  for (const e of Object.values(escrowState())) {
+    const left = e.in - e.spent;
+    if (e.in <= 0) continue;
+    const at = e.spends.length ? e.spends[e.spends.length - 1].at : 0;
+    if (left < 0.0005) out.push({ id: "e-" + e.k, g: "money", go: "funding", at, t: `${escName(e.k)} is used up`, sub: `${usd(e.in)} in, ${usd(e.spent)} spent. Alerts and repairs now need new funding.` });
+    else if (left <= e.in * LOW_FUNDS) out.push({ id: "l-" + e.k + "-" + usd(left), g: "money", go: "funding", at, t: `${escName(e.k)} is running low`, sub: `${usd(left)} left of ${usd(e.in)}, enough for about ${Math.floor(left / PRICE.sms + 1e-9)} more SMS. Ask a sponsor to top it up.` });
+  }
   if (pending) out.push({ id: "p", g: "money", go: pending.kind === "fund" ? "funding" : "", wp: pending.wp || "", at: Date.now(), pin: true, t: "Waiting for your approval in the TODAQ app", sub: pending.kind === "fund" ? "Sponsorship payment" : "Approved alert payment" });
   return out.sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.at - a.at).slice(0, 60);
 }
