@@ -44,12 +44,13 @@ Replies: OK (working), BROKEN (not working), DRY, DIRTY (quality). A 4-digit wat
 
 ## WhatsApp via Torque
 
-Torque (the team's Muse agent with WhatsApp) is AquaSentinel's WhatsApp contact. It submits committee reports to the report store (`torque/worker/`, Cloudflare Worker `aquasentinel-reports`) by webhook or by buying the Qatom report item ($0.001). The store reads the water point (number, ID or village, fuzzy) and the status (English and Swahili words), and returns a reply or an ask-back. The console polls `https://aquasentinel-reports.hassan-khan-cd6.workers.dev/reports` every 4 seconds and applies accepted reports. Write URLs carry a secret path that is never committed. Details and the instructions to paste into Torque: `docs/TORQUE.md`. Rebuild the Worker's point index with `python torque/gen_points.py`.
+Torque (the team's Muse agent with WhatsApp) is AquaSentinel's WhatsApp contact. It submits committee reports to the report store (`torque/worker/`, Cloudflare Worker `aquasentinel-reports`) by webhook or by buying Qatom catalog item 214 ($0.001). The store reads the water point (number, ID or village, fuzzy) and the status (English and Swahili words), and returns a reply or an ask-back. The console polls `https://aquasentinel-reports.hassan-khan-cd6.workers.dev/reports` every 4 seconds and applies accepted reports. Write URLs carry a secret path that is never committed. Details and the instructions to paste into Torque: `docs/TORQUE.md`. Rebuild the Worker's point index with `python torque/gen_points.py`.
 
 ## Agentic Commerce Infra (Qatom)
 
 - Catalog item 212, "AquaSentinel: sponsor a Kijana water point (hackathon demo)", $1, inputs `wp_id` (or `DISTRICT`) and `sponsor`. The item's own wallet is the district escrow.
 - Catalog item 213, "AquaSentinel: send an approved water alert (hackathon demo)", $0.02, inputs `wp_id` and `message`. The officer's approval of an SMS alert is a real purchase approved in the TODAQ app or at an approval link.
+- Catalog item 214, "AquaSentinel: submit a water report (hackathon demo)", $0.001, inputs `wp_id`, `status`, `message`, `reporter`, `phone`. Torque buys it to submit a WhatsApp report; its endpoint is the report store's secret write path.
 - Live transactions on 17 Oct 2026: 91ca3e13-86db-49fd-a584-ee507eb9f8de ($1 sponsorship of KJ-WP-0631) and 9d919d86-a347-4e0b-8d26-7fb395bbca91 ($0.02 approved alert for KJ-WP-0631).
 - The public site replays these as seeded records; new payments there are simulated and labelled "Simulated". Live payments run only in the owner's claude.ai console with the Qatom connector.
 - Metering prices used in the app: $0.001 per scoring or agent call, $0.02 per SMS (case pack range $0.01–0.03).

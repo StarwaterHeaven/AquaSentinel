@@ -17,7 +17,7 @@ Committee member --WhatsApp--> Torque --(webhook or Qatom item, $0.001)--> repor
 - **Free check:** `GET /check?wp_id=0631&status=broken&message=...` returns what a submit would do and stores nothing.
 - **Writes:** these need the secret path. It is never in this repo; Hassan holds it.
   - `POST /in/<secret>`: Torque's webhook.
-  - `POST /q/<secret>`: the endpoint of the Qatom catalog item "AquaSentinel: submit a water report", priced at $0.001 per report. Every report bought this way has a receipt.
+  - `POST /q/<secret>`: the endpoint of Qatom catalog item 214, "AquaSentinel: submit a water report (hackathon demo)", priced at $0.001 per report. Every report bought this way has a receipt.
 
 ## What Torque sends
 
