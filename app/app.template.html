@@ -157,7 +157,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
   <div class="kpis" id="kpis"></div>
   <div class="grid">
     <div class="panel">
-      <div class="ph"><h2>Water points</h2><button class="btn" id="scan">Run weekly scan</button></div>
+      <div class="ph"><h2>Water points</h2><div class="btns"><label class="btn" for="csvin" style="display:inline-flex;align-items:center">Import messages (CSV)</label><input id="csvin" type="file" accept=".csv,text/csv" hidden><button class="btn" id="scan">Run weekly scan</button></div></div>
       <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg></div>
       <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span></div>
       <div class="filters">
@@ -230,7 +230,13 @@ const PHONES = [
   { id: "ph-0143", label: "Shared phone, Olandewe (two water points)", num: "+000 555 0143 (demo)", wps: ["KJ-WP-0069", "KJ-WP-0143"] },
   { id: "ph-anon", label: "Unregistered number", num: "+000 555 9999 (demo)", wps: [] }
 ];
+const SEED = __SEED__; // live Qatom records captured before the pitch (standalone build only)
 const S = { decisions: {}, status: {}, inbox: {}, outbox: {}, ledger: {}, funds: {} };
+const LS_KEY = "aqs-demo-state-v1";
+let chan = null;
+function seedState() { const x = JSON.parse(JSON.stringify(SEED || {})); for (const k of Object.keys(S)) S[k] = x[k] || {}; }
+function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} try { chan && chan.postMessage(S); } catch (e) {} }
+function loadLocal() { try { const x = JSON.parse(localStorage.getItem(LS_KEY) || "null"); if (x) { for (const k of Object.keys(S)) S[k] = x[k] || {}; return true; } } catch (e) {} return false; }
 let mcp = null, pending = null, proofTab = "sponsor";
 let db = null, sel = PTS.find(p => p.st !== "Functional").id, filter = "nw", shown = 60, editing = false, seenInbox = null;
 const $ = s => document.querySelector(s);
@@ -291,7 +297,7 @@ function smsFor(p, v, acts) {
 // ---------- store (shared via db; in-page memory if db is unavailable)
 async function put(col, id, data) {
   if (db) { try { await db.collection(col).doc(id).set(data); return; } catch (e) { toast("Could not save: " + (e && e.code || "error")); } }
-  S[col][id] = data; render();
+  S[col][id] = data; saveLocal(); render();
 }
 async function meter(item, wp, units, unitPrice, proof) { await put("ledger", uid(), { item, wp: wp || "", units, cost: +(units * unitPrice).toFixed(4), at: Date.now(), proof: proof || "" }); }
 
@@ -502,7 +508,7 @@ function renderPhone() {
   $("#thread").innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${m.dir}">${esc(m.text)}<small>${when(m.at)}</small></div>`).join("") : `<div class="msg in">No messages yet. Approve an alert in the officer view, or send a report.</div>`;
   $("#thread").scrollTop = 1e6;
   const ev = Object.values(S.inbox).sort((a, b) => b.at - a.at).slice(0, 30);
-  $("#log").innerHTML = ev.length ? ev.map(m => `<li><b>${esc(m.result)}</b><span>“${esc(m.text)}” from ${esc((PHONES.find(x => x.id === m.phone) || {}).label || m.phone)}</span><small>${when(m.at)}</small></li>`).join("") : `<li><span class="note">Reports from committees will appear here with what the system did with each one.</span></li>`;
+  $("#log").innerHTML = ev.length ? ev.map(m => `<li><b>${esc(m.result)}</b><span>“${esc(m.text)}” from ${esc((PHONES.find(x => x.id === m.phone) || {}).label || (m.phone === "import" ? "imported message" : m.phone))}</span><small>${when(m.at)}</small></li>`).join("") : `<li><span class="note">Reports from committees will appear here with what the system did with each one.</span></li>`;
 }
 function parse(text) {
   const t = text.toLowerCase();
@@ -543,6 +549,65 @@ async function send(text) {
   if (wp && kind) await meter("Rescore water point", wp, 1, PRICE.call);
 }
 
+// ---------- bulk import of inbound messages (e.g. the 1pm flood inject, once released)
+function parseCSV(text) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  const head = (rows.shift() || []).map(h => h.trim().toLowerCase());
+  return rows.filter(r => r.some(x => x.trim())).map(r => Object.fromEntries(head.map((h, i) => [h, r[i] ?? ""])));
+}
+const TYPE_WORDS = /\b(borehole|shallow|well|water|scheme|solar|piped|gravity|primary|secondary|school|health|centre|center|dispensary|hand|dug|kiosk|tap|stand|\d+)\b/gi;
+let VILLAGES = null;
+function villageIndex() {
+  if (VILLAGES) return VILLAGES;
+  VILLAGES = {};
+  for (const p of PTS) { const v = p.n.replace(TYPE_WORDS, " ").replace(/\s+/g, " ").trim().toLowerCase(); if (v.length > 2) (VILLAGES[v] = VILLAGES[v] || []).push(p.id); }
+  return VILLAGES;
+}
+function resolveText(text) {
+  const m = text.match(/KJ-WP-(\d{4})/i) || text.match(/\b(\d{4})\b/);
+  if (m && BY["KJ-WP-" + m[1]]) return { wp: "KJ-WP-" + m[1], how: "number" };
+  const t = " " + text.toLowerCase().replace(/[^a-z\s]/g, " ") + " ";
+  let best = null;
+  for (const [v, ids] of Object.entries(villageIndex())) if (t.includes(" " + v + " ") && (!best || v.length > best.v.length)) best = { v, ids };
+  if (!best) return { wp: null, how: "none" };
+  return best.ids.length === 1 ? { wp: best.ids[0], how: "village" } : { wp: null, how: "ambiguous", ids: best.ids };
+}
+async function importMessages(file) {
+  const rows = parseCSV(await file.text());
+  let applied = 0, unclear = 0, unmatched = 0, ambiguous = 0;
+  for (const r of rows) {
+    const text = r.text || r.message || r.body || ""; if (!text.trim()) continue;
+    const at = Date.parse(r.received_at || r.timestamp || "") || Date.now();
+    let { kind } = parse(text);
+    if (!kind && /flood|mafuriko|maji ya mto|muddy|matope/i.test(text)) kind = "dirty";
+    const res = resolveText(text);
+    let result;
+    if (!res.wp) { if (res.how === "ambiguous") { ambiguous++; result = `Needs the officer: village has ${res.ids.length} water points (${res.ids.map(short).join(", ")})`; } else { unmatched++; result = "Could not match a water point"; } }
+    else if (!kind) { unclear++; result = `${short(res.wp)}: message read, no status change`; }
+    else {
+      const cur = S.status[res.wp] || {}, next = { ...cur, at, src: "imported SMS" };
+      if (kind === "ok") { next.status = "Functional"; next.dirty = false; }
+      if (kind === "broken") next.status = "Non-functional";
+      if (kind === "dry") next.status = "Seasonal (dry)";
+      if (kind === "dirty") next.dirty = true;
+      await put("status", res.wp, next); applied++;
+      result = `${short(res.wp)} ${BY[res.wp].n}: ${kind === "dirty" ? "water quality or flood report" : kind} (matched by ${res.how})`;
+    }
+    await put("inbox", uid(), { phone: "import", text, wp: res.wp || "", result, at });
+  }
+  await meter(`Imported ${rows.length} messages`, "", rows.length, PRICE.call);
+  filter = "nw"; shown = 60; render();
+  toast(`${rows.length} messages read: ${applied} updated water points, ${ambiguous} need the officer, ${unclear} unclear, ${unmatched} unmatched.`);
+}
+
 // ---------- receipt
 function renderReceipt() {
   const L = Object.values(S.ledger).sort((a, b) => b.at - a.at);
@@ -574,8 +639,9 @@ $("#detail").addEventListener("click", e => {
   if (e.target.id === "edit") { editing = !editing; renderOfficer(); }
   if (e.target.dataset.approved === "alert" && pending) { sel = pending.wp; decide("approved", pending.approvalId); }
   if (e.target.dataset.cancel) { pending = null; render(); }
-  if (e.target.id === "reopen") { if (db) db.collection("decisions").doc(sel).delete().catch(() => {}); else { delete S.decisions[sel]; render(); } }
+  if (e.target.id === "reopen") { if (db) db.collection("decisions").doc(sel).delete().catch(() => {}); else { delete S.decisions[sel]; saveLocal(); render(); } }
 });
+$("#csvin").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if (f) importMessages(f); e.target.value = ""; });
 $("#scan").addEventListener("click", async () => { await meter("Weekly scan: score every water point", "", PTS.length, PRICE.call); toast(`Scanned ${PTS.length.toLocaleString()} water points. Cost ${usd(PTS.length * PRICE.call)}.`); });
 $("#fwp").innerHTML = `<option value="DISTRICT">District escrow (all water points)</option>` + PTS.slice().sort((a, b) => (view(b).nw - view(a).nw) || (view(a).score - view(b).score)).map(p => `<option value="${p.id}">${short(p.id)} ${esc(p.n)}</option>`).join("");
 $("#fwp").value = "KJ-WP-0631";
@@ -607,7 +673,14 @@ render();
 })();
 (async () => {
   try { db = window.claude && claude.use ? await claude.use("db") : null; } catch (e) { db = null; }
-  if (!db) { $("#synctext").textContent = "Offline demo: changes stay in this tab"; return; }
+  if (!db) {
+    if (!loadLocal()) seedState();
+    try { chan = new BroadcastChannel("aqs-demo"); chan.onmessage = ev => { const x = ev.data || {}; for (const k of Object.keys(S)) S[k] = x[k] || {}; render(); }; } catch (e) { chan = null; }
+    window.addEventListener("storage", ev => { if (ev.key === LS_KEY && loadLocal()) render(); });
+    $("#synctext").innerHTML = `Demo mode: windows on this computer stay in sync · <button class="btn" id="reset" type="button" style="padding:3px 8px;font-size:12px">Reset demo</button>`;
+    $("#reset").addEventListener("click", () => { seedState(); pending = null; saveLocal(); render(); toast("Demo reset to the starting state."); });
+    render(); return;
+  }
   $("#syncdot").classList.add("on"); $("#synctext").textContent = "Live: shared with everyone on this page";
   for (const col of Object.keys(S)) {
     db.collection(col).onSnapshot(snap => {
