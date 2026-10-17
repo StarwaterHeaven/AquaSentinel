@@ -1,0 +1,109 @@
+# AquaSentinel
+
+> Team Ocean's build for the Water Care AI Hackathon 2026, Track B, challenge B1 (Kijana District rural water security). AquaSentinel scores every water point in the fictional Kijana District out of 100, puts the broken ones first on the District Water Officer's list, lets the officer approve, edit or reject every action before anything goes out, texts water committees in plain SMS and reads their one-word replies, and records every action and every dollar on the Agentic Commerce Infra (Qatom) so sponsors, the officer and each committee can see where the money went.
+
+This file is the skill for any AI assistant contributing to this repo. Read it first, then the files it points to. The pitch is at 18:00 on 17 Oct 2026 (America/Toronto); code freeze is 16:00.
+
+## Ground rules (never break these)
+
+- All data is synthetic. Kijana District is fictional. Everything is a scenario result. Never write anything that presents a score or prediction as showing water is safe to drink; only a lab test can.
+- The Kijana data pack (CSV and GeoJSON files) is the organisers' data. It lives in `data/` locally and is never committed. Nothing in `out/` is committed either. `.gitignore` enforces both.
+- Do not use the mentor Staff Pack, and do not use the 1pm flood inject until the organisers release it to teams.
+- Never overlay real maps, satellite imagery or public datasets on Kijana's invented geography. Public data is for methods and benchmarks only.
+- The demo is in English. The SMS reader must keep accepting the common Swahili words listed in `docs/CONTRACT.md` (communities are Swahili-first in the field).
+- Money format: whole dollars without decimals ($1), cents with two ($0.04), fractions of a cent with three ($0.001).
+- Keep `view()` in `app/app.template.html` in step with `scoring/score.py`. Keep field names in `docs/CONTRACT.md` stable; a pull request that changes the contract says so in its title.
+- Work on a branch, open small pull requests into `main`, and say in the description what changed and how you checked it. Wizard Kepler (the team's build agent) merges.
+
+## The people
+
+- Vladyslav: data and validation (backtest, message reading, flood inject). Presents the pitch at 18:00.
+- Ruth: field and community side (SMS wording and flow, pump plate, silence-list review). Plays the committee member in the demo.
+- Hassan: product and the Agentic Commerce Infra (Qatom). Leaves at 15:20.
+- Personas from the case pack the design must serve: Joseph (District Water Officer), Mama Rehema (committee treasurer, basic phone, reads Swahili), Halima (area mechanic, no smartphone, Mlimani), Bibi Amina (64, no phone, hamlet of 90 in Mlimani; the design must work for her).
+
+## How the score works
+
+Five dimensions, 20 points each, total out of 100:
+
+1. Working now: the newest status from any source (register, 2022/2024 inspections, 2025 survey, job card opened or closed, committee SMS). Functional = 20, reduced to 14.3 if the evidence is over a year old and 10.3 if over two years; dry = 8.6; not working = 0.
+2. Reliability: breakdowns since 2021 and median repair days.
+3. Committee: tariff model, savings, a meeting in the last 6 months, service agreement. Piped/solar schemes run by operators get a neutral score.
+4. Water quality: latest E. coli, fluoride and nitrate; a dirty-water report in the last year caps it.
+5. Water supply: sub-county rainfall anomaly over the last 6 months (shallow wells weigh more); a "dry" report in the last year lowers it.
+
+Bands: 80+ Good, 60–79 Watch, 40–59 At risk, under 40 Critical. Rule on top: any point that is not working is flagged "Not working" and listed first, whatever its score. Each point also carries a confidence label (High, Medium, Low); Low = "silent" (no fresh evidence) and goes on the inspection list. Suggested actions come from simple rules (send the nearest mechanic, chase an open job card, boil-water advice and retest, inspect, committee support, seasonal-dry watch, plan a rising-main swap).
+
+Current results on the data pack (score v0.4): 1,078 points; 755 working, 323 not working; 20 Critical, 377 At risk; 484 silent. Functionality: register 79%, newest evidence 70%, case pack working figure about 65%; we treat 70% as a ceiling.
+
+Backtest (`scoring/backtest.py`, `docs/BACKTEST.md`): scored blind with records before 1 Jan 2024. Against the 2024 inspection round (624 points, 21% non-functional), 47% of flagged points were found broken (more than twice the base rate) and the flagged list caught 72% of broken pumps. Against the Aug 2025 survey (124 points, 28% non-functional): 47% precision, 49% recall. Silent points held 52–57% of the failures the flag missed or did not see, which is why they go on the inspection list.
+
+## Officer workflow (to-do list)
+
+Every water point that needs the officer gets a priority: 1 Urgent (a new committee or WhatsApp report of a problem since the last decision), 2 Act now (not working with no mechanic sent, or a water-quality risk), 3 Follow up (repair job card open), 4 Inspect (silent). The "To do" tile lists them in that order, then by population. A red bar and a count on the Water officer tab announce urgent reports; approving or rejecting clears them. Code: `prio()` and `queue()` in the template.
+
+## SMS
+
+Replies: OK (working), BROKEN (not working), DRY, DIRTY (quality). A 4-digit water-point code in the text (e.g. `0631 BROKEN`) always wins. Otherwise a phone registered to exactly one point is matched; a phone covering several points, or an unregistered one, is asked for the code. Bulk import of message CSVs (e.g. the flood inject) matches by ID, 4-digit code or village name; villages with several points go to the officer.
+
+## WhatsApp via Torque
+
+Torque (the team's Muse agent with WhatsApp) is AquaSentinel's WhatsApp contact. It submits committee reports to the report store (`torque/worker/`, Cloudflare Worker `aquasentinel-reports`) by webhook or by buying Qatom catalog item 214 ($0.001). The store reads the water point (number, ID or village, fuzzy) and the status (English and Swahili words), and returns a reply or an ask-back. The console polls `https://aquasentinel-reports.hassan-khan-cd6.workers.dev/reports` every 4 seconds and applies accepted reports. Write URLs carry a secret path that is never committed. Details and the instructions to paste into Torque: `docs/TORQUE.md`. Rebuild the Worker's point index with `python torque/gen_points.py`.
+
+## Agentic Commerce Infra (Qatom)
+
+- Catalog item 212, "AquaSentinel: sponsor a Kijana water point (hackathon demo)", $1, inputs `wp_id` (or `DISTRICT`) and `sponsor`. The item's own wallet is the district escrow.
+- Catalog item 213, "AquaSentinel: send an approved water alert (hackathon demo)", $0.02, inputs `wp_id` and `message`. The officer's approval of an SMS alert is a real purchase approved in the TODAQ app or at an approval link.
+- Catalog item 214, "AquaSentinel: submit a water report (hackathon demo)", $0.001, inputs `wp_id`, `status`, `message`, `reporter`, `phone`. Torque buys it to submit a WhatsApp report; its endpoint is the report store's secret write path.
+- Live transactions on 17 Oct 2026: 91ca3e13-86db-49fd-a584-ee507eb9f8de ($1 sponsorship of KJ-WP-0631) and 9d919d86-a347-4e0b-8d26-7fb395bbca91 ($0.02 approved alert for KJ-WP-0631).
+- The public site replays these as seeded records; new payments there are simulated and labelled "Simulated". Live payments run only in the owner's claude.ai console with the Qatom connector.
+- Metering prices used in the app: $0.001 per scoring or agent call, $0.02 per SMS (case pack range $0.01–0.03).
+
+## Cost and who pays
+
+About $3.46–7.26 per water point per year (52 alerts, about 24 reports and replies, scoring calls, shared shortcode and hosting). The whole district costs $3,600–7,600 a year, inside the district's own monitoring budget line ($7,300 budgeted, $5,200 released in 2025/26). Repairs are funded by sponsors (NGOs, councils, companies, the public) into the district escrow or one water point's escrow, topped up by committee tariffs.
+
+## Run it
+
+```bash
+pip install pandas numpy
+# copy the data pack CSVs and GeoJSON into data/
+python scoring/score.py          # out/water_point_scores.csv
+python scoring/export_points.py  # out/points.json
+python scoring/export_map.py     # out/map.json (map layers)
+python app/build.py              # out/aquasentinel-console.html and out/site/index.html
+scripts/publish_pages.sh         # republish the public site (needs push access)
+```
+
+Open `out/site/index.html` (or the public site) in two windows of the same browser: the officer view and `#phone`. They stay in sync. "Reset demo" returns to the starting state.
+
+## Where things are
+
+- [README.md](README.md): overview, run instructions, links
+- [docs/CONTRACT.md](docs/CONTRACT.md): the water-point fields, the live-state collections, SMS words and prices that every part agrees on
+- [docs/TASKS.md](docs/TASKS.md): who does what today, with briefs to paste into an AI
+- [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md): the 5-minute pitch, minute by minute, and the demo click path
+- [docs/TORQUE.md](docs/TORQUE.md): Torque, the WhatsApp contact, and the report store it submits to
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): parties, data flows and money flows (discussion draft)
+- [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf): the deck; slides 1–6 are the pitch, 7–21 the appendix
+- [scoring/score.py](scoring/score.py): the score engine
+- [scoring/export_points.py](scoring/export_points.py): compact data for the app
+- [scoring/export_map.py](scoring/export_map.py): the pack's own synthetic map layers (sub-counties, roads, rivers, May 2024 flood, town, health facilities) for the console map
+- [app/app.template.html](app/app.template.html): the console (officer view, committee phone, funding and proof, receipt)
+- [app/build.py](app/build.py): builds the single-file console and the public site
+- [app/seed.json](app/seed.json): the live Qatom records replayed on the public site
+- Public site: https://starwaterheaven.github.io/AquaSentinel/ (`#phone`, `#funding`, `#receipt`)
+
+## Most useful contributions before 16:00
+
+1. Backtest: done (`scoring/backtest.py`, by Vladyslav; real-pack results in `docs/BACKTEST.md`). Next: try weights that raise precision without losing recall, and report both numbers.
+2. Message reading: done. The console's `parse()` and `resolveText()` now use the v0.4 rules (weighted English/Swahili keywords, fuzzy village names, type hints such as tank, solar, kisima). `scoring/eval_messages.py` scores the engine and the console on the 450 labelled messages: the console places 33% of messages on the right point and only 3% on a wrong one; villages with several points go to the officer with the candidate list instead of a guess.
+3. Flood inject (Vladyslav, after release): import it in the console and list the affected water points.
+4. SMS wording and flow (Ruth): test every reply from each demo phone on the public site; propose clearer text (search for `WATER ALERT` and `Thank you` in the template).
+5. Pump plate: done (`docs/plate.svg`).
+6. Silence list (Ruth): five bullets for a slide on who the silent list protects (no-signal settlements, Mlimani, Bibi Amina).
+
+## Optional
+
+- Case pack: the organisers' B1 brief (personas, constraints, unit costs, judging). Ask Hassan for the PDF.
+- Data pack README: the data dictionary and known data issues (records that disagree, mistyped IDs, missing coordinates, sensor dropout, multilingual messages).
