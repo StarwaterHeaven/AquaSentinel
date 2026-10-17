@@ -490,7 +490,7 @@ function listHTML(rows) {
   }).join("") + (rows.length > shown ? `<button class="more" id="more">Show ${Math.min(60, rows.length - shown)} more of ${rows.length - shown}</button>` : "");
 }
 let proj = null;
-function mapHTML(all) {
+function mapHTML(rows) {
   if (!proj) {
     const g = PTS.filter(p => p.la != null);
     const x0 = Math.min(...g.map(p => p.lo)), x1 = Math.max(...g.map(p => p.lo)), y0 = Math.min(...g.map(p => p.la)), y1 = Math.max(...g.map(p => p.la));
@@ -498,7 +498,7 @@ function mapHTML(all) {
     proj = { W, H, f: p => [8 + (p.lo - x0) / (x1 - x0) * (W - 16), 8 + (y1 - p.la) / (y1 - y0) * (H - 16)] };
     $("#map").setAttribute("viewBox", `0 0 ${W} ${H}`);
   }
-  const ordered = all.filter(x => x.p.la != null).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
+  const ordered = rows.filter(x => x.p.la != null).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
   return ordered.map(({ p, v }) => {
     const [x, y] = proj.f(p), s = p.id === sel;
     return `<circle data-id="${p.id}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${s ? 7 : v.nw ? 3.6 : 2.6}" fill="var(${bandVar(v.band)})" ${v.nw || s ? `stroke="var(--ink)" stroke-width="${s ? 2.5 : 1}"` : ""} style="cursor:pointer"><title>${esc(p.n)} · ${v.score}</title></circle>`;
@@ -536,7 +536,7 @@ function renderOfficer() {
   kpis(all);
   const rows = filtered(all);
   $("#list").innerHTML = listHTML(rows);
-  $("#map").innerHTML = mapHTML(all);
+  $("#map").innerHTML = mapHTML(rows);
   $("#detail").innerHTML = detailHTML();
 }
 async function decide(kind, approvalId) {
