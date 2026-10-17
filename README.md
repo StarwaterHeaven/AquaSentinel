@@ -6,6 +6,8 @@ AquaSentinel gives every water point in Kijana District a score out of 100, puts
 
 > **Synthetic data.** Kijana District is fictional. All outputs are scenario results. No score shows that water is safe to drink; only a lab test can.
 
+**Live demo:** https://starwaterheaven.github.io/AquaSentinel/ (officer view; add `#phone` for the committee phone in a second window, `#funding` for funding and proof). Republish with `scripts/publish_pages.sh`.
+
 ## How the score works
 
 Five dimensions, 20 points each:
