@@ -238,7 +238,7 @@ function seedState() { const x = JSON.parse(JSON.stringify(SEED || {})); for (co
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} try { chan && chan.postMessage(S); } catch (e) {} }
 function loadLocal() { try { const x = JSON.parse(localStorage.getItem(LS_KEY) || "null"); if (x) { for (const k of Object.keys(S)) S[k] = x[k] || {}; return true; } } catch (e) {} return false; }
 let mcp = null, pending = null, proofTab = "sponsor";
-let db = null, sel = PTS.find(p => p.st !== "Functional").id, filter = "nw", shown = 60, editing = false, seenInbox = null;
+let db = null, sel = PTS.find(p => p.st !== "Functional").id, filter = "all", shown = 60, editing = false, seenInbox = null;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const short = id => id.slice(-4);
@@ -394,13 +394,14 @@ const pts = () => PTS.map(p => ({ p, v: view(p) }));
 function kpis(all) {
   const dec = Object.values(S.decisions);
   const k = [
+    ["all", "All points", all.length],
+    ["ok", "Working", all.filter(x => !x.v.nw).length],
     ["nw", "Not working", all.filter(x => x.v.nw).length],
     ["crit", "Critical", all.filter(x => x.v.band === "Critical").length],
     ["risk", "At risk", all.filter(x => x.v.band === "At risk").length],
     ["silent", "Silent points", all.filter(x => x.v.conf === "Low").length],
     ["todo", "Awaiting decision", all.filter(x => (x.v.nw || x.v.band === "Critical") && !S.decisions[x.p.id]).length],
-    ["done", "Approved", dec.filter(d => d.decision === "approved").length],
-    ["all", "All points", all.length]
+    ["done", "Approved", dec.filter(d => d.decision === "approved").length]
   ];
   $("#kpis").innerHTML = k.map(([f, l, n]) => `<button class="kpi" data-f="${f}" aria-pressed="${filter === f}"><div class="v">${n.toLocaleString()}</div><div class="l">${l}</div></button>`).join("");
 }
@@ -410,6 +411,7 @@ function filtered(all) {
     if (sub && p.sc !== sub) return false;
     if (q && !(p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))) return false;
     if (filter === "nw") return v.nw;
+    if (filter === "ok") return !v.nw;
     if (filter === "crit") return v.band === "Critical";
     if (filter === "risk") return v.band === "At risk";
     if (filter === "silent") return v.conf === "Low";
@@ -422,12 +424,13 @@ const bandVar = b => ({ Critical: "--crit", "At risk": "--risk", Watch: "--watch
 const bandCls = b => b === "At risk" ? "b-risk" : "b-" + b;
 function listHTML(rows) {
   if (!rows.length) return `<div class="empty">No water points match.</div>`;
-  return rows.slice(0, shown).map(({ p, v }) => {
+  const label = { all: "All water points", ok: "Working", nw: "Not working", crit: "Critical", risk: "At risk", silent: "Silent points", todo: "Awaiting decision", done: "Approved" }[filter] || "";
+  return `<div class="note" style="padding:8px 14px;border-bottom:1px solid var(--line)">${label}: ${rows.length.toLocaleString()} · ${filter === "all" ? "not working first, then lowest score" : "lowest score first"} · showing ${Math.min(shown, rows.length)}</div>` + rows.slice(0, shown).map(({ p, v }) => {
     const d = S.decisions[p.id];
     return `<button class="row" role="option" data-id="${p.id}" aria-selected="${p.id === sel}">
       <span class="sc ${bandCls(v.band)}">${v.score}</span>
       <span class="nm"><b>${esc(p.n)}</b><small><span class="mono">${short(p.id)}</span> · ${p.sc} · ${esc(v.acts[0] ? v.acts[0].t : "No action")}</small></span>
-      <span class="chips">${v.nw ? `<span class="chip c-nw">Not working</span>` : ""}${v.conf === "Low" ? `<span class="chip c-low">Silent</span>` : ""}${d ? `<span class="chip ${d.decision === "approved" ? "c-ok" : "c-no"}">${d.decision === "approved" ? "Approved" : "Rejected"}</span>` : ""}</span>
+      <span class="chips">${v.nw ? `<span class="chip c-nw">${v.st === "Seasonal (dry)" ? "Dry" : v.st === "Not found" ? "Not found" : "Not working"}</span>` : `<span class="chip c-ok">Working</span>`}${v.conf === "Low" ? `<span class="chip c-low">Silent</span>` : ""}${d ? `<span class="chip ${d.decision === "approved" ? "c-ok" : "c-no"}">${d.decision === "approved" ? "Approved" : "Rejected"}</span>` : ""}</span>
     </button>`;
   }).join("") + (rows.length > shown ? `<button class="more" id="more">Show ${Math.min(60, rows.length - shown)} more of ${rows.length - shown}</button>` : "");
 }
@@ -605,7 +608,7 @@ async function importMessages(file) {
     await put("inbox", uid(), { phone: "import", text, wp: res.wp || "", result, at });
   }
   await meter(`Imported ${rows.length} messages`, "", rows.length, PRICE.call);
-  filter = "nw"; shown = 60; render();
+  filter = "all"; shown = 60; render();
   toast(`${rows.length} messages read: ${applied} updated water points, ${ambiguous} need the officer, ${unclear} unclear, ${unmatched} unmatched.`);
 }
 
