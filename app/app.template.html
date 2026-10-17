@@ -309,9 +309,10 @@ async function qatomBuy(itemKey, args, approvalId, ctx) {
   if (approvalId) input.approval_id = approvalId;
   try {
     const res = await mcp.callTool(QATOM.server, "agent_checkout", input);
-    const body = textOf(res && (res.payload ?? res.content));
+    const pay = res && res.payload, tx = pay && typeof pay === "object" && pay.transaction_id;
+    const proof = tx ? `Qatom transaction ${tx} · item ${pay.catalog_item_id ?? QATOM[itemKey]} · ${pay.amount_charged ?? ""} ${pay.currency || "USD-TDN"} · ${new Date().toISOString().slice(0, 19).replace("T", " ")} UTC` : textOf(pay ?? (res && res.content)).slice(0, 300);
     pending = null; render();
-    return { state: "paid", proof: body.slice(0, 600) };
+    return { state: "paid", proof };
   } catch (e) {
     const msg = textOf(e && (e.message || e)) + " " + textOf(e && e.result);
     const link = (msg.match(/https:\/\/[^\s"'<>)]*approvals?[^\s"'<>)]*/) || [])[0];
