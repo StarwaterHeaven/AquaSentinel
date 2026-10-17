@@ -38,6 +38,10 @@ Current results on the data pack (score v0.4): 1,078 points; 755 working, 323 no
 
 Backtest (`scoring/backtest.py`, `docs/BACKTEST.md`): scored blind with records before 1 Jan 2024. Against the 2024 inspection round (624 points, 21% non-functional), 47% of flagged points were found broken (more than twice the base rate) and the flagged list caught 72% of broken pumps. Against the Aug 2025 survey (124 points, 28% non-functional): 47% precision, 49% recall. Silent points held 52–57% of the failures the flag missed or did not see, which is why they go on the inspection list.
 
+## Officer workflow (to-do list)
+
+Every water point that needs the officer gets a priority: 1 Urgent (a new committee or WhatsApp report of a problem since the last decision), 2 Act now (not working with no mechanic sent, or a water-quality risk), 3 Follow up (repair job card open), 4 Inspect (silent). The "To do" tile lists them in that order, then by population. A red bar and a count on the Water officer tab announce urgent reports; approving or rejecting clears them. Code: `prio()` and `queue()` in the template.
+
 ## SMS
 
 Replies: OK (working), BROKEN (not working), DRY, DIRTY (quality). A 4-digit water-point code in the text (e.g. `0631 BROKEN`) always wins. Otherwise a phone registered to exactly one point is matched; a phone covering several points, or an unregistered one, is asked for the code. Bulk import of message CSVs (e.g. the flood inject) matches by ID, 4-digit code or village name; villages with several points go to the officer.
@@ -91,7 +95,7 @@ Open `out/site/index.html` (or the public site) in two windows of the same brows
 ## Most useful contributions before 16:00
 
 1. Backtest: done (`scoring/backtest.py`, by Vladyslav; real-pack results in `docs/BACKTEST.md`). Next: try weights that raise precision without losing recall, and report both numbers.
-2. Message reading (Vladyslav): `scoring/score.py` v0.4 has the improved `cat()` and `resolve()` (weighted keywords, bare 4-digit codes, fuzzy village names). Port the same rules to the app's `parse()` and `resolveText()`, and commit `scoring/eval_messages.py` run on the real pack.
+2. Message reading: done. The console's `parse()` and `resolveText()` now use the v0.4 rules (weighted English/Swahili keywords, fuzzy village names, type hints such as tank, solar, kisima). `scoring/eval_messages.py` scores the engine and the console on the 450 labelled messages: the console places 33% of messages on the right point and only 3% on a wrong one; villages with several points go to the officer with the candidate list instead of a guess.
 3. Flood inject (Vladyslav, after release): import it in the console and list the affected water points.
 4. SMS wording and flow (Ruth): test every reply from each demo phone on the public site; propose clearer text (search for `WATER ALERT` and `Thank you` in the template).
 5. Pump plate: done (`docs/plate.svg`).

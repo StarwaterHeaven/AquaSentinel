@@ -36,7 +36,7 @@ Presenter: **Vladyslav**. Committee phone: **Ruth**, if she is there. Otherwise 
 2. Click **Olagoni Shallow Well, 26**. "Five parts, each out of 20, and the reasons in plain words: reported broken by text a year ago and nobody came, E. coli in its last test, no tariff, no savings."
 3. "Nothing goes out without the officer." Press **Approve and send**. (In this public build the payment is labelled Simulated; say: "This morning we ran this exact step live on Qatom. The receipts are in the proof view.")
 4. **Window B, Committee phone.** The alert has arrived. Press **OK** or **BROKEN**. "The committee replies with one word."
-5. **Window A.** The score changes and the report appears. "The officer sees it straight away."
+5. **Window A.** A red bar says a new report needs a decision, and the Water officer tab shows a count. Click **Open the to-do list**: "Urgent reports first, then broken pumps nobody has been sent to, then job cards to chase, then silent pumps to inspect. Approving clears it."
 6. Optional, if the flood CSV is there: **Import messages (CSV)** in window A. "Here are today's flood reports: each matched to a water point and rescored, and the ones we can't place go to the officer."
 7. Open **Funding and proof** (tab in window A). Show the escrows table and the **Committee** proof for 0631: "$1 from a sponsor this morning, live on Qatom, transaction 91ca3e13. The sponsor, the officer and the committee each see where it went."
 

@@ -65,6 +65,10 @@ nav button:focus-visible,.btn:focus-visible,.row:focus-visible{outline:2px solid
 .b-Critical{background:var(--crit-bg);color:var(--crit)} .b-At.risk{background:var(--risk-bg);color:var(--risk)}
 .b-risk{background:var(--risk-bg);color:var(--risk)} .b-Watch{background:var(--watch-bg);color:var(--watch)} .b-Good{background:var(--good-bg);color:var(--good)}
 .c-nw{background:var(--crit);color:var(--panel)} .c-ok{background:var(--good-bg);color:var(--good)} .c-no{background:var(--wash);color:var(--ink2)} .c-low{background:var(--wash);color:var(--ink2);border:1px dashed var(--ink3)}
+.alertbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px}
+.alertbar span{color:var(--ink2);flex:1 1 200px;min-width:0}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--crit);color:var(--panel);font-size:11px;font-weight:700;line-height:18px;text-align:center;margin-left:4px}
+.p1{background:var(--crit);color:var(--panel)} .p2{background:var(--risk-bg);color:var(--risk)} .p3{background:var(--watch-bg);color:var(--watch)} .p4{background:var(--wash);color:var(--ink2)}
 .more{display:block;width:100%;padding:10px;border:0;background:none;color:var(--accent);cursor:pointer;font-weight:600}
 .detail{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
 .dhead{display:flex;gap:16px;align-items:flex-start}
@@ -154,6 +158,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 </header>
 
 <section class="view" id="v-officer">
+  <div class="alertbar" id="alertbar" role="status" hidden></div>
   <div class="kpis" id="kpis"></div>
   <div class="grid">
     <div class="panel">
@@ -251,7 +256,7 @@ function view(p) {
   const ov = S.status[p.id];
   let st = p.st, age = p.age, src = p.ss, D = p.D, conf;
   let E = p.E;
-  if (ov && ov.status) { st = ov.status; age = ov.at ? Math.max(0, Math.round((Date.now() - ov.at) / 864e5)) : 0; src = ov.src === "imported SMS" ? "imported SMS" : "committee SMS (live)"; }
+  if (ov && ov.status) { st = ov.status; age = ov.at ? Math.max(0, Math.round((Date.now() - ov.at) / 864e5)) : 0; src = ov.src === "imported SMS" ? "imported SMS" : (ov.src || "committee SMS") + " (live)"; }
   if (ov && ov.dirty) D = Math.min(D, 6.7);
   if (ov && ov.status === "Seasonal (dry)") E = Math.max(0, E - 8); // a dry report in the last year, as in score.py
   let A = st === "Functional" ? 20 : st === "Seasonal (dry)" ? 8.6 : 0;
@@ -394,6 +399,26 @@ async function fund(approvalId) {
 
 // ---------- officer view
 const pts = () => PTS.map(p => ({ p, v: view(p) }));
+// Officer workflow: what needs the officer, in priority order.
+// 1 Urgent: a new committee/WhatsApp report of a problem since the last decision.
+// 2 Act now: not working with nobody sent, or a water-quality risk, and no decision yet.
+// 3 Follow up: a repair job card is already open; chase it.
+// 4 Inspect: silent point, no fresh evidence.
+const PRIO = { 1: "Urgent", 2: "Act now", 3: "Follow up", 4: "Inspect" };
+function prio(p, v) {
+  const d = S.decisions[p.id], ov = S.status[p.id];
+  if (ov && ov.at > (d ? d.at : 0) && (ov.status && ov.status !== "Functional" || ov.dirty)) return { t: 1, why: `New report: ${ov.dirty ? "dirty water" : ov.status === "Seasonal (dry)" ? "dry" : "not working"} (${ov.src || "committee"})` };
+  if (d) return null;
+  if (v.nw && !p.oj) return { t: 2, why: "Not working, no mechanic sent" };
+  if (v.dims[3] <= 6.7) return { t: 2, why: "Water-quality risk: boil advice and retest" };
+  if (v.nw && p.oj) return { t: 3, why: `Repair job card open (${p.oj}), chase it` };
+  if (v.conf === "Low") return { t: 4, why: "Silent: no fresh evidence, inspect" };
+  return null;
+}
+function queue(all) {
+  return all.map(x => ({ ...x, q: prio(x.p, x.v) })).filter(x => x.q)
+    .sort((a, b) => (a.q.t - b.q.t) || ((b.p.pop || 0) - (a.p.pop || 0)) || (a.v.score - b.v.score));
+}
 function kpis(all) {
   const dec = Object.values(S.decisions);
   const k = [
@@ -403,13 +428,14 @@ function kpis(all) {
     ["crit", "Critical", all.filter(x => x.v.band === "Critical").length],
     ["risk", "At risk", all.filter(x => x.v.band === "At risk").length],
     ["silent", "Silent points", all.filter(x => x.v.conf === "Low").length],
-    ["todo", "Awaiting decision", all.filter(x => (x.v.nw || x.v.band === "Critical") && !S.decisions[x.p.id]).length],
+    ["todo", "To do (priority order)", queue(all).length],
     ["done", "Approved", dec.filter(d => d.decision === "approved").length]
   ];
   $("#kpis").innerHTML = k.map(([f, l, n]) => `<button class="kpi" data-f="${f}" aria-pressed="${filter === f}"><div class="v">${n.toLocaleString()}</div><div class="l">${l}</div></button>`).join("");
 }
 function filtered(all) {
   const q = $("#q").value.trim().toLowerCase(), sub = $("#sub").value;
+  if (filter === "todo") return queue(all).filter(({ p }) => (!sub || p.sc === sub) && (!q || p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)));
   return all.filter(({ p, v }) => {
     if (sub && p.sc !== sub) return false;
     if (q && !(p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))) return false;
@@ -418,7 +444,6 @@ function filtered(all) {
     if (filter === "crit") return v.band === "Critical";
     if (filter === "risk") return v.band === "At risk";
     if (filter === "silent") return v.conf === "Low";
-    if (filter === "todo") return (v.nw || v.band === "Critical") && !S.decisions[p.id];
     if (filter === "done") return S.decisions[p.id] && S.decisions[p.id].decision === "approved";
     return true;
   }).sort((a, b) => (b.v.nw - a.v.nw) || (a.v.score - b.v.score));
@@ -427,13 +452,13 @@ const bandVar = b => ({ Critical: "--crit", "At risk": "--risk", Watch: "--watch
 const bandCls = b => b === "At risk" ? "b-risk" : "b-" + b;
 function listHTML(rows) {
   if (!rows.length) return `<div class="empty">No water points match.</div>`;
-  const label = { all: "All water points", ok: "Working", nw: "Not working", crit: "Critical", risk: "At risk", silent: "Silent points", todo: "Awaiting decision", done: "Approved" }[filter] || "";
-  return `<div class="note" style="padding:8px 14px;border-bottom:1px solid var(--line)">${label}: ${rows.length.toLocaleString()} · ${filter === "all" ? "not working first, then lowest score" : "lowest score first"} · showing ${Math.min(shown, rows.length)}</div>` + rows.slice(0, shown).map(({ p, v }) => {
-    const d = S.decisions[p.id];
+  const label = { all: "All water points", ok: "Working", nw: "Not working", crit: "Critical", risk: "At risk", silent: "Silent points", todo: "To do", done: "Approved" }[filter] || "";
+  return `<div class="note" style="padding:8px 14px;border-bottom:1px solid var(--line)">${label}: ${rows.length.toLocaleString()} · ${filter === "all" ? "not working first, then lowest score" : filter === "todo" ? "urgent first, then most people affected" : "lowest score first"} · showing ${Math.min(shown, rows.length)}</div>` + rows.slice(0, shown).map(({ p, v }) => {
+    const d = S.decisions[p.id], q = filter === "todo" ? prio(p, v) : null;
     return `<button class="row" role="option" data-id="${p.id}" aria-selected="${p.id === sel}">
       <span class="sc ${bandCls(v.band)}">${v.score}</span>
-      <span class="nm"><b>${esc(p.n)}</b><small><span class="mono">${short(p.id)}</span> · ${p.sc} · ${esc(v.acts[0] ? v.acts[0].t : "No action")}</small></span>
-      <span class="chips">${v.nw ? `<span class="chip c-nw">${v.st === "Seasonal (dry)" ? "Dry" : v.st === "Not found" ? "Not found" : "Not working"}</span>` : `<span class="chip c-ok">Working</span>`}${v.conf === "Low" ? `<span class="chip c-low">Silent</span>` : ""}${d ? `<span class="chip ${d.decision === "approved" ? "c-ok" : "c-no"}">${d.decision === "approved" ? "Approved" : "Rejected"}</span>` : ""}</span>
+      <span class="nm"><b>${esc(p.n)}</b><small><span class="mono">${short(p.id)}</span> · ${p.sc} · ${esc(q ? q.why : v.acts[0] ? v.acts[0].t : "No action")}</small></span>
+      <span class="chips">${q ? `<span class="chip p${q.t}">${PRIO[q.t]}</span>` : ""}${v.nw ? `<span class="chip c-nw">${v.st === "Seasonal (dry)" ? "Dry" : v.st === "Not found" ? "Not found" : "Not working"}</span>` : `<span class="chip c-ok">Working</span>`}${v.conf === "Low" ? `<span class="chip c-low">Silent</span>` : ""}${d ? `<span class="chip ${d.decision === "approved" ? "c-ok" : "c-no"}">${d.decision === "approved" ? "Approved" : "Rejected"}</span>` : ""}</span>
     </button>`;
   }).join("") + (rows.length > shown ? `<button class="more" id="more">Show ${Math.min(60, rows.length - shown)} more of ${rows.length - shown}</button>` : "");
 }
@@ -475,6 +500,12 @@ function detailHTML() {
 }
 function renderOfficer() {
   const all = pts();
+  const urgent = queue(all).filter(x => x.q.t === 1);
+  $("#alertbar").hidden = !urgent.length;
+  if (urgent.length) $("#alertbar").innerHTML = `<b>${urgent.length} new report${urgent.length > 1 ? "s need" : " needs"} your decision</b><span>${urgent.slice(0, 3).map(x => esc(short(x.p.id) + " " + x.p.n)).join(" · ")}</span><button class="btn pri" id="gotodo" type="button">Open the to-do list</button>`;
+  const nb = document.querySelector('nav button[data-view="officer"]');
+  nb.innerHTML = "Water officer" + (urgent.length ? ` <span class="badge">${urgent.length}</span>` : "");
+  document.title = (urgent.length ? `(${urgent.length}) ` : "") + "AquaSentinel Console";
   kpis(all);
   const rows = filtered(all);
   $("#list").innerHTML = listHTML(rows);
@@ -517,19 +548,26 @@ function renderPhone() {
   const ev = Object.values(S.inbox).sort((a, b) => b.at - a.at).slice(0, 30);
   $("#log").innerHTML = ev.length ? ev.map(m => `<li><b>${esc(m.result)}</b><span>“${esc(m.text)}” from ${esc((PHONES.find(x => x.id === m.phone) || {}).label || m.who || (m.phone === "import" ? "imported message" : m.phone))}</span><small>${when(m.at)}</small></li>`).join("") : `<li><span class="note">Reports from committees will appear here with what the system did with each one.</span></li>`;
 }
+// Message reader: weighted English/Swahili keywords, same stems as scoring/score.py v0.4.
+// Flood words count as a water-quality (dirty) report. Ties go to the status that drives action.
+const KW = {
+  dirty: [["chafu", 2], ["dirty", 2], ["smell", 2], ["harufu", 2], ["kutu", 2], ["rust", 2], ["rangi", 2], ["colour", 2], ["color", 2], ["taste", 1], ["ladha", 2], ["tumbo", 2], ["diarr", 2], ["kuhara", 2], ["turbid", 2], ["muddy", 2], ["matope", 2], ["brown", 1], ["green", 1], ["mafuriko", 3], ["flood", 3], ["submerged", 2], ["maji ya mto", 2], ["washed away", 2]],
+  broken: [["not working", 3], ["broken", 3], ["broke", 2], ["imeharibika", 3], ["imekufa", 3], ["mbovu", 2], ["hakuna maji", 2], ["haitoi", 3], ["spoilt", 2], ["imevunjika", 3], ["umevunjika", 3], ["imekataa", 3], ["yapasuka", 2], ["limepasuka", 2], ["haijawasha", 2], ["yamemwagika", 2], ["fundi", 1], ["bila maji", 1], ["no water", 1], ["still waiting", 3], ["bado", 2], ["when will", 2], ["weeks ago", 2], ["hajafika", 2], ["haijafanyiwa", 3]],
+  dry: [["imekauka", 3], ["kimekauka", 3], ["kavu", 3], ["source dry", 3], ["well dry", 3], ["water table", 2], ["dried", 2], ["dry", 2]],
+  ok: [["fixed", 3], ["imetengenezwa", 3], ["inafanya kazi", 3], ["working now", 3], ["repaired", 3], ["imerekebishwa", 3], ["back to normal", 3], ["working", 2], ["sawa", 2], ["ok", 2], ["okay", 2]]
+};
+const KW_ORDER = ["dirty", "broken", "dry", "ok"];
 function parse(text) {
-  const t = text.toLowerCase().replace(/[’`]/g, "'");
-  const codes = t.match(/\b\d{4}\b/g) || [];
+  const codes = text.match(/\b\d{4}\b/g) || [];
   const code = codes.find(c => BY["KJ-WP-" + c]); // a known code always wins
   const bad = code ? null : codes[0] || null;     // a 4-digit number that is not a water point
-  let kind = null;
-  if (/\b(dirty|chafu|kutu|rust|smell|colou?r)\b/.test(t)) kind = "dirty";
-  else if (/\b(dry|kimekauka|imekauka|kavu)\b/.test(t)) kind = "dry";
-  // negations first, so "isn't working" or "not fixed" is never read as OK
-  else if (/\b(broken|broke|mbovu|imeharibika|imekufa|haitoi|haifanyi kazi|haijatengenezwa|no water|hakuna maji)\b/.test(t)
-    || /\b(not|isn't|aren't|never|no longer|stopped|hasn't|haven't)\b(\s+\w+){0,2}\s+(working|fixed|ok|okay|repaired)\b/.test(t)) kind = "broken";
-  else if (/\b(ok|okay|sawa|working|fixed|imetengenezwa|inafanya kazi)\b/.test(t)) kind = "ok";
-  return { code, bad, kind };
+  const t = " " + text.toLowerCase().replace(/[’`]/g, "'").replace(/[^a-z0-9'\s]/g, " ").replace(/\s+/g, " ") + " ";
+  const has = kw => kw.length <= 4 ? t.includes(" " + kw + " ") : t.includes(kw);
+  const sc = Object.fromEntries(KW_ORDER.map(k => [k, KW[k].reduce((a, [kw, w]) => a + (has(kw) ? w : 0), 0)]));
+  // negations, so "isn't working" or "not fixed" is never read as OK
+  if (/\b(not|isn't|aren't|never|no longer|stopped|hasn't|haven't)\b(\s+\w+){0,2}\s+(working|fixed|ok|okay|repaired)\b/.test(t) || /haifanyi kazi|haijatengenezwa/.test(t)) { sc.ok = 0; sc.broken += 3; }
+  const best = KW_ORDER.reduce((a, k) => (sc[k] > sc[a] ? k : a), KW_ORDER[0]);
+  return { code, bad, kind: sc[best] > 0 ? best : null };
 }
 async function send(text) {
   text = text.trim(); if (!text) return;
@@ -537,8 +575,11 @@ async function send(text) {
   const { code, bad, kind } = parse(text);
   let wp = code ? "KJ-WP-" + code : null, reply, result;
   if (!wp && !bad && ph.wps.length === 1) wp = ph.wps[0];
+  let cands = null;
+  if (!wp && !bad && !ph.wps.length) { const r = resolveText(text); if (r.wp) wp = r.wp; else if (r.ids) cands = r.ids; }
   if (bad) { reply = `Thank you. We do not have a water point numbered ${bad}. Please check the 4-digit number painted on the pump and send it again.`; result = `Unknown water point number ${bad}`; }
   else if (!wp && ph.wps.length > 1) { reply = `This number covers more than one water point. Reply with the number first, for example ${short(ph.wps[0])} ${kind ? kind.toUpperCase() : "BROKEN"} or ${short(ph.wps[1])} ${kind ? kind.toUpperCase() : "BROKEN"}.`; result = "Asked which water point"; }
+  else if (!wp && cands) { reply = `Thank you. There are ${cands.length} water points there: ${cands.slice(0, 4).map(id => short(id) + " " + BY[id].n).join(", ")}. Which one? Send the 4-digit number painted on the pump.`; result = `Asked which of ${cands.length} water points`; }
   else if (!wp) { reply = "Thank you. Please add the 4-digit number painted on the pump, for example 0631 BROKEN."; result = "Asked for the water point number"; }
   else if (!kind) { reply = `Thank you. For ${short(wp)} please reply OK, BROKEN, DRY or DIRTY.`; result = `Unclear report for ${short(wp)}`; }
   else {
@@ -619,7 +660,7 @@ function parseCSV(text) {
   const head = (rows.shift() || []).map(h => h.trim().toLowerCase());
   return rows.filter(r => r.some(x => x.trim())).map(r => Object.fromEntries(head.map((h, i) => [h, r[i] ?? ""])));
 }
-const TYPE_WORDS = /\b(borehole|shallow|well|water|scheme|solar|piped|gravity|primary|secondary|school|health|centre|center|dispensary|hand|dug|kiosk|tap|stand|\d+)\b/gi;
+const TYPE_WORDS = /\b(borehole|shallow|well|water|scheme|solar|piped|gravity|primary|secondary|school|health|centre|center|dispensary|hand|dug|kiosk|tap|stand|spring|tank|rainwater|pump|protected|\d+)\b/gi;
 let VILLAGES = null;
 function villageIndex() {
   if (VILLAGES) return VILLAGES;
@@ -627,14 +668,45 @@ function villageIndex() {
   for (const p of PTS) { const v = p.n.replace(TYPE_WORDS, " ").replace(/\s+/g, " ").trim().toLowerCase(); if (v.length > 2) (VILLAGES[v] = VILLAGES[v] || []).push(p.id); }
   return VILLAGES;
 }
+function lev(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// When a village has several water points, a word in the message can pick the type.
+const TECH_HINTS = [
+  [/\b(tank|rain)\b/, /tank|rain/], [/\bspring\b/, /spring/], [/\b(kiosk|tap|taps|piped)\b/, /tap|kiosk|piped/],
+  [/\b(solar|motor|motorised|generator)\b/, /solar|motor/], [/\b(handle|mpini|strokes|hand pump|handpump)\b/, /hand|hp|bh w/],
+  [/\b(shallow|well|kisima)\b/, /shallow|well|hdw|dug/], [/\b(borehole)\b/, /borehole|\bbh\b/]
+];
+function pickPoint(ids, t, how) {
+  if (ids.length === 1) return { wp: ids[0], how };
+  for (const [msg, kind] of TECH_HINTS) if (msg.test(t)) {
+    const c = ids.filter(id => kind.test((BY[id].n + " " + BY[id].ty).toLowerCase()));
+    if (c.length === 1) return { wp: c[0], how: how + " and type" };
+  }
+  return { wp: null, how: "ambiguous", ids };
+}
 function resolveText(text) {
   const m = text.match(/KJ-WP-(\d{4})/i) || text.match(/\b(\d{4})\b/);
   if (m && BY["KJ-WP-" + m[1]]) return { wp: "KJ-WP-" + m[1], how: "number" };
-  const t = " " + text.toLowerCase().replace(/[^a-z\s]/g, " ") + " ";
+  const t = " " + text.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ") + " ";
+  const V = villageIndex(), names = Object.keys(V).sort((a, b) => b.length - a.length);
+  for (const v of names) if (t.includes(" " + v + " ")) return pickPoint(V[v], t, "village");
+  // misspelt village names: closest name at 80% similarity or better (as score.py's fuzzy match)
+  const toks = t.trim().split(" "), grams = toks.concat(toks.slice(1).map((w, i) => toks[i] + " " + w)).filter(g => g.length >= 5);
   let best = null;
-  for (const [v, ids] of Object.entries(villageIndex())) if (t.includes(" " + v + " ") && (!best || v.length > best.v.length)) best = { v, ids };
-  if (!best) return { wp: null, how: "none" };
-  return best.ids.length === 1 ? { wp: best.ids[0], how: "village" } : { wp: null, how: "ambiguous", ids: best.ids };
+  for (const g of grams) for (const v of names) {
+    if (Math.abs(v.length - g.length) > 3) continue;
+    const r = 1 - lev(g, v) / Math.max(g.length, v.length);
+    if (r >= 0.8 && (!best || r > best.r)) best = { v, r };
+  }
+  if (best) return pickPoint(V[best.v], t, "similar village name");
+  return { wp: null, how: "none" };
 }
 async function importMessages(file) {
   const stamp = r => Date.parse(r.received_at || r.timestamp || "") || Date.now();
@@ -643,8 +715,7 @@ async function importMessages(file) {
   for (const r of rows) {
     const text = r.text || r.message || r.body || "";
     const at = stamp(r);
-    let { kind } = parse(text);
-    if (!kind && /flood|mafuriko|maji ya mto|muddy|matope/i.test(text)) kind = "dirty";
+    const { kind } = parse(text);
     const res = resolveText(text);
     let result;
     if (!res.wp) { if (res.how === "ambiguous") { ambiguous++; result = `Needs the officer: village has ${res.ids.length} water points (${res.ids.map(short).join(", ")})`; } else { unmatched++; result = "Could not match a water point"; } }
@@ -686,6 +757,7 @@ function show(v) {
   try { localStorage.setItem("as-view", v); } catch (e) {}
 }
 document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
+$("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer"); renderOfficer(); });
 $("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); });
 $("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); } });
 $("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
