@@ -212,7 +212,12 @@ The app also uses $0.001 as an indicative metering price per scoring or agent ca
 | [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md) | Pitch outline and demo click path. |
 | [`docs/TASKS.md`](docs/TASKS.md) | Team tasks and contribution briefs. |
 | [`docs/plate.svg`](docs/plate.svg) | Example water-point pump plate. |
+| [`docs/AquaSentinel-TeamOcean-deck.pdf`](docs/AquaSentinel-TeamOcean-deck.pdf) | Pitch deck: slides 1–7 are the pitch, the rest is the appendix. |
 | [`llms.txt`](llms.txt) | Repository-specific guidance for AI assistants and contributors. |
+
+## Team
+
+Team Ocean: Vladyslav (data and validation; presenting), Ruth (field and community side), Hassan (product and the Agentic Commerce Infra), with Wizard Kepler (build agent) and Torque (WhatsApp and text agent).
 
 ## Contributing
 
