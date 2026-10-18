@@ -8,6 +8,12 @@ The scoring pipeline combines water-point status, repair history, committee reco
 
 **Try the [public demo](https://starwaterheaven.github.io/AquaSentinel/)**: open the officer view, or add `#phone`, `#funding`, or `#receipt` to the URL to open a specific view.
 
+**Watch the [2-minute demo video](docs/demo/aquasentinel-demo.mp4)** (captions, no sound):
+
+[![AquaSentinel demo walkthrough](docs/demo/aquasentinel-demo-poster.jpg)](docs/demo/aquasentinel-demo.mp4)
+
+> **Status:** presented on 17 October 2026. The build is frozen at its pitch state. See [`docs/WRAP-UP.md`](docs/WRAP-UP.md) for what is still live, the open decisions, known issues and what we learned.
+
 ## At a glance
 
 - **Purpose:** help an officer decide what to inspect or follow up first—not replace field checks or laboratory testing.
@@ -211,6 +217,8 @@ The app also uses $0.001 as an indicative metering price per scoring or agent ca
 | [`docs/BACKTEST.md`](docs/BACKTEST.md) | Backtest methodology and results. |
 | [`docs/TORQUE.md`](docs/TORQUE.md) | Torque messaging report path (WhatsApp, iMessage, and SMS) and setup. |
 | [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md) | Pitch outline and demo click path. |
+| [`docs/WRAP-UP.md`](docs/WRAP-UP.md) | Final state after the pitch: what is live, open decisions, known issues, lessons. |
+| [`docs/demo/`](docs/demo/) | Demo video and poster; [`scripts/demo/`](scripts/demo/) re-records it. |
 | [`docs/TASKS.md`](docs/TASKS.md) | Team tasks and contribution briefs. |
 | [`docs/plate.svg`](docs/plate.svg) | Example water-point pump plate. |
 | [`docs/AquaSentinel-TeamOcean-deck.pdf`](docs/AquaSentinel-TeamOcean-deck.pdf) | Pitch deck: slides 1–7 are the pitch, the rest is the appendix. |
