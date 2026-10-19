@@ -228,6 +228,8 @@ The app also uses $0.001 as an indicative metering price per scoring or agent ca
 
 Team Ocean: Vladyslav (data and validation; presenting), Ruth (field and community side), Hassan (product and the Agentic Commerce Infra), with Wizard Kepler (build agent) and Torque (WhatsApp and text agent).
 
+Repository owner and maintainer: Starwater ([@StarwaterHeaven](https://github.com/StarwaterHeaven)).
+
 ## Contributing
 
 ### Typical change workflow
