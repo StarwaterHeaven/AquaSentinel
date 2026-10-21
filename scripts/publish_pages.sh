@@ -4,6 +4,7 @@
 set -euo pipefail
 python scoring/score.py >/dev/null
 python scoring/export_points.py
+python scoring/export_map.py
 python app/build.py
 tmp=$(mktemp -d)
 cp out/site/index.html out/site/.nojekyll out/site/llms.txt "$tmp"/

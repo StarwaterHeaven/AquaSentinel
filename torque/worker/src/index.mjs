@@ -120,6 +120,15 @@ async function readInput(req, url) {
   } catch { return q; }
 }
 
+// Channel from any of the usual field names; falls back to hints in the reporter label.
+function chan(input) {
+  const f = String(input.channel || input.source || input.medium || input.platform || input.via || "").toLowerCase();
+  const h = f || String(input.reporter || "").toLowerCase();
+  if (/imessage|apple/.test(h)) return "iMessage";
+  if (/\b(sms|text|txt)\b/.test(h)) return "SMS";
+  return "WhatsApp";
+}
+
 export class ReportLog {
   constructor(ctx) { this.ctx = ctx; }
   async fetch(req) {
@@ -158,7 +167,7 @@ export default {
     const rec = {
       id: crypto.randomUUID(), at: Date.now(), accepted: a.accepted, wp_id: a.wp_id, name: a.name, status: a.status, need: a.need,
       message: String(input.message || input.text || "").slice(0, 280), reporter: String(input.reporter || "").slice(0, 80),
-      phone: phone ? "…" + phone.slice(-3) : "", channel: /imessage|sms|text/i.test(input.channel || "") ? (/imessage/i.test(input.channel) ? "iMessage" : "SMS") : "WhatsApp", via: m[1] === "q" ? "Qatom item" : "Torque webhook", reply: a.reply
+      phone: phone ? "…" + phone.slice(-3) : "", channel: chan(input), via: m[1] === "q" ? "Qatom item" : "Torque webhook", reply: a.reply
     };
     await log.fetch(new Request("https://do/add", { method: "POST", body: JSON.stringify(rec) }));
     return json({ ...a, report_id: rec.id, received_at: new Date(rec.at).toISOString(), note: "Synthetic hackathon scenario. A report never shows that water is safe to drink." });

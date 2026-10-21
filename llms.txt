@@ -2,7 +2,7 @@
 
 > Team Ocean's build for the Water Care AI Hackathon 2026, Track B, challenge B1 (Kijana District rural water security). AquaSentinel scores every water point in the fictional Kijana District out of 100, puts the broken ones first on the District Water Officer's list, lets the officer approve, edit or reject every action before anything goes out, texts water committees in plain SMS and reads their one-word replies, and records every action and every dollar on the Agentic Commerce Infra (Qatom) so sponsors, the officer and each committee can see where the money went.
 
-This file is the skill for any AI assistant contributing to this repo. Read it first, then the files it points to. The pitch is at 18:00 on 17 Oct 2026 (America/Toronto); code freeze is 16:00.
+This file is the skill for any AI assistant contributing to this repo. Read it first, then the files it points to. The pitch was given at 18:00 on 17 Oct 2026 (America/Toronto) and the build is frozen at that state; read docs/WRAP-UP.md for what is still live, the open decisions and the known issues before changing anything. Demo video: docs/demo/aquasentinel-demo.mp4.
 
 ## Ground rules (never break these)
 
@@ -70,6 +70,7 @@ pip install pandas numpy
 # copy the data pack CSVs and GeoJSON into data/
 python scoring/score.py          # out/water_point_scores.csv
 python scoring/export_points.py  # out/points.json
+python scoring/export_map.py     # out/map.json (map layers)
 python app/build.py              # out/aquasentinel-console.html and out/site/index.html
 scripts/publish_pages.sh         # republish the public site (needs push access)
 ```
@@ -80,13 +81,16 @@ Open `out/site/index.html` (or the public site) in two windows of the same brows
 
 - [README.md](README.md): overview, run instructions, links
 - [docs/CONTRACT.md](docs/CONTRACT.md): the water-point fields, the live-state collections, SMS words and prices that every part agrees on
-- [docs/TASKS.md](docs/TASKS.md): who does what today, with briefs to paste into an AI
+- [docs/WRAP-UP.md](docs/WRAP-UP.md): final state after the 17 Oct pitch, open decisions, known issues, lessons
+- [docs/demo/aquasentinel-demo.mp4](docs/demo/aquasentinel-demo.mp4): 2-minute demo video; [scripts/demo/record_demo.py](scripts/demo/record_demo.py) re-records it
+- [docs/TASKS.md](docs/TASKS.md): who did what on the day, with the briefs pasted into an AI
 - [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md): the 5-minute pitch, minute by minute, and the demo click path
 - [docs/TORQUE.md](docs/TORQUE.md): Torque, the WhatsApp contact, and the report store it submits to
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): parties, data flows and money flows (discussion draft)
 - [docs/AquaSentinel-TeamOcean-deck.pdf](docs/AquaSentinel-TeamOcean-deck.pdf): the deck; slides 1–6 are the pitch, 7–21 the appendix
 - [scoring/score.py](scoring/score.py): the score engine
 - [scoring/export_points.py](scoring/export_points.py): compact data for the app
+- [scoring/export_map.py](scoring/export_map.py): the pack's own synthetic map layers (sub-counties, roads, rivers, May 2024 flood, town, health facilities) for the console map
 - [app/app.template.html](app/app.template.html): the console (officer view, committee phone, funding and proof, receipt)
 - [app/build.py](app/build.py): builds the single-file console and the public site
 - [app/seed.json](app/seed.json): the live Qatom records replayed on the public site
