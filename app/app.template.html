@@ -114,6 +114,9 @@ textarea.sms{width:100%;min-height:86px;resize:vertical}
 .msg.out{background:#17261a;color:#e8f1e5;align-self:flex-end}
 .msg small{display:block;opacity:.65;font-size:10px;margin-top:2px}
 .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
+.samples{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.samples button{background:none;border:1px solid #4a6066;color:#c9d8d8;border-radius:999px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+.samples button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .keys button{background:#2f4247;color:#e4ecec;border:0;border-radius:10px;padding:10px 0;font-weight:700;font-size:12px;cursor:pointer;font-family:var(--mono)}
 .compose{display:flex;gap:6px;margin-top:8px}
 .compose input{flex:1;min-width:0;border-radius:8px;border:0;padding:9px;background:#e4ecec;color:#17261a;font-family:var(--mono)}
@@ -147,6 +150,11 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 .toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;max-width:340px;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.18)}
 @media (prefers-reduced-motion:no-preference){.toast{animation:up .25s ease-out}@keyframes up{from{transform:translateY(8px);opacity:0}}}
 .scroll-x{overflow-x:auto}
+.filters,#detail{scroll-margin-top:84px}
+.totop{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:19;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.14)}
+.totop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:11.5px;color:var(--ink3)}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--panel)}
 .fundgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px;align-items:start}
 @media (max-width:900px){.fundgrid{grid-template-columns:minmax(0,1fr)}}
 .form{display:grid;gap:10px;padding:14px}
@@ -187,9 +195,10 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
       <div class="ph"><h2>Water points</h2><div class="btns"><label class="btn" for="csvin" style="display:inline-flex;align-items:center">Import messages (CSV)</label><input id="csvin" type="file" accept=".csv,text/csv" hidden><button class="btn" id="scan">Run weekly scan</button></div></div>
       <div class="mapwrap"><svg id="map" role="img" aria-label="Map of water points coloured by score band"></svg><svg id="zoom" class="zoom" role="img" aria-label="Close-up of the selected water point and its surroundings" hidden></svg></div>
       <div class="note" id="mapsel" style="padding:0 14px 6px"></div>
+      <div class="note" id="mapcount" aria-live="polite" style="padding:0 14px"></div>
       <div class="legend"><span><i style="background:var(--crit)"></i>Critical</span><span><i style="background:var(--risk)"></i>At risk</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--good)"></i>Good</span><span><i style="background:none;border:2px solid var(--ink)"></i>Not working</span><span class="maplegend"><b style="color:var(--ochre)">━</b> Road (dashed: not passable when wet)</span><span class="maplegend"><b style="color:var(--watch)">━</b> River</span><span class="maplegend"><b style="color:var(--crit)">+</b> Health facility</span><label class="maplegend" style="cursor:pointer"><input type="checkbox" id="floodtog"> May 2024 flood extent</label></div>
       <div class="filters">
-        <input id="q" type="search" placeholder="Search name or number" aria-label="Search water points">
+        <input id="q" type="search" placeholder="Search name or number (press / )" aria-label="Search water points">
         <select id="sub" aria-label="Sub-county"><option value="">All sub-counties</option></select>
       </div>
       <div class="list" id="list" role="listbox" aria-label="Priority list"></div>
@@ -205,6 +214,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
       <div class="phone">
         <div class="screen"><div class="scr-h"><span id="scrname">Messages</span><span>Kijana Water Line</span></div><div class="thread" id="thread"></div></div>
         <div class="keys"><button data-q="OK">OK</button><button data-q="BROKEN">BROKEN</button><button data-q="DRY">DRY</button><button data-q="DIRTY">DIRTY</button></div>
+        <div class="samples" id="samples" aria-label="Sample messages"><button type="button" data-q="Pump is broken, please send a mechanic">Pump is broken</button><button type="button" data-q="The well has dried up">Well dried up</button><button type="button" data-q="Water looks dirty and smells bad">Dirty water</button><button type="button" data-q="The pump is fixed and working now">Fixed</button></div>
         <form class="compose" id="compose"><input id="msgin" autocomplete="off" placeholder="Type a message" aria-label="Message"><button type="submit">Send</button></form>
       </div>
     </div>
@@ -247,6 +257,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 
 <p class="foot">Scenario results on synthetic data. Kijana District is fictional. No score here shows that water is safe to drink; only a lab test can.</p>
 <div id="toastbox"></div>
+<button class="totop" id="totop" type="button" hidden>↑ Back to top</button>
 
 <script>
 const PTS = __DATA__;
@@ -479,9 +490,11 @@ function filtered(all) {
 const bandVar = b => ({ Critical: "--crit", "At risk": "--risk", Watch: "--watch", Good: "--good" }[b]);
 const bandCls = b => b === "At risk" ? "b-risk" : "b-" + b;
 function listHTML(rows) {
-  if (!rows.length) return `<div class="empty">No water points match.</div>`;
+  const narrowed = filter !== "all" || $("#q").value.trim() || $("#sub").value;
+  const clear = narrowed ? ` <button class="btn" id="clearf" type="button" style="padding:2px 8px;font-size:12px">Clear filters</button>` : "";
+  if (!rows.length) return `<div class="empty">No water points match.${clear}</div>`;
   const label = { all: "All water points", ok: "Working", nw: "Not working", crit: "Critical", risk: "At risk", silent: "Silent points", todo: "To do", done: "Approved" }[filter] || "";
-  return `<div class="note" style="padding:8px 14px;border-bottom:1px solid var(--line)">${label}: ${rows.length.toLocaleString()} · ${filter === "all" ? "not working first, then lowest score" : filter === "todo" ? "urgent first, then most people affected" : "lowest score first"} · showing ${Math.min(shown, rows.length)}</div>` + rows.slice(0, shown).map(({ p, v }) => {
+  return `<div class="note" style="padding:8px 14px;border-bottom:1px solid var(--line)">${label}: ${rows.length.toLocaleString()} · ${filter === "all" ? "not working first, then lowest score" : filter === "todo" ? "urgent first, then most people affected" : "lowest score first"} · showing ${Math.min(shown, rows.length)}${clear}</div>` + rows.slice(0, shown).map(({ p, v }) => {
     const d = S.decisions[p.id], q = filter === "todo" ? prio(p, v) : null;
     return `<button class="row" role="option" data-id="${p.id}" aria-selected="${p.id === sel}">
       <span class="sc ${bandCls(v.band)}">${v.score}</span>
@@ -492,7 +505,7 @@ function listHTML(rows) {
 }
 let proj = null;
 let showFlood = false, baseSVG = "";
-function mapHTML(all) {
+function mapHTML(rows) {
   if (!proj) {
     const g = PTS.filter(p => p.la != null), xs = g.map(p => p.lo), ys = g.map(p => p.la);
     if (MAP) for (const s of MAP.subcounties) for (const r of s.rings) for (const [lo, la] of r) { xs.push(lo); ys.push(la); }
@@ -515,7 +528,7 @@ function mapHTML(all) {
       <g>${MAP.towns.map(t => { const [x, y] = proj.f(t); return `<rect x="${(x - 4.5).toFixed(1)}" y="${(y - 4.5).toFixed(1)}" width="9" height="9" fill="var(--ink)" transform="rotate(45 ${x.toFixed(1)} ${y.toFixed(1)})"/><text x="${(x + 9).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="12" font-weight="700" fill="var(--ink)" stroke="var(--panel)" stroke-width="3" paint-order="stroke">${esc(t.name)}</text>`; }).join("")}</g>
     </g>`;
   }
-  const ordered = all.filter(x => x.p.la != null && x.p.id !== sel).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
+  const ordered = rows.filter(x => x.p.la != null && x.p.id !== sel).sort((a, b) => (a.v.nw - b.v.nw) || (b.v.score - a.v.score));
   const dots = ordered.map(({ p, v }) => {
     const [x, y] = proj.f(p);
     return `<circle data-id="${p.id}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${v.nw ? 3.6 : 2.6}" fill="var(${bandVar(v.band)})" ${v.nw ? `stroke="var(--ink)" stroke-width="1"` : ""} style="cursor:pointer"><title>${esc(p.n)} · ${v.score}</title></circle>`;
@@ -589,8 +602,10 @@ function renderOfficer() {
   kpis(all);
   const rows = filtered(all);
   $("#list").innerHTML = listHTML(rows);
-  $("#map").innerHTML = mapHTML(all);
+  $("#map").innerHTML = mapHTML(rows);
   renderZoom(all);
+  const mapped = rows.filter(x => x.p.la != null).length;
+  $("#mapcount").textContent = rows.length === all.length ? "" : `Map shows ${mapped.toLocaleString()} of ${all.length.toLocaleString()} water points`;
   $("#detail").innerHTML = detailHTML();
 }
 async function decide(kind, approvalId) {
@@ -598,6 +613,7 @@ async function decide(kind, approvalId) {
   const chosen = [...document.querySelectorAll("#acts input")].filter(i => i.checked).map(i => v.acts[+i.dataset.a]);
   const sms = $("#smsedit") ? $("#smsedit").value : smsFor(p, v, chosen);
   const at = Date.now();
+  const nextId = filter === "todo" ? (() => { const ids = filtered(pts()).map(x => x.p.id), i = ids.indexOf(sel); return ids[i + 1] || ids[i - 1] || ""; })() : "";
   let proof = null;
   if (kind === "approved" && liveOn("alertItem")) {
     const r = await qatomBuy("alertItem", { wp_id: p.id, message: sms.slice(0, 480) }, approvalId, { kind: "alert", wp: p.id });
@@ -612,6 +628,7 @@ async function decide(kind, approvalId) {
     if (chosen.some(a => a.k === "dispatch")) await meter(`Job card sent to mechanic ${p.mech}`, p.id, 1, PRICE.sms);
     toast(`Approved. Alert sent to the ${short(p.id)} committee.`);
   } else toast(`Rejected. Nothing sent for ${short(p.id)}.`);
+  if (nextId && BY[nextId]) { sel = nextId; renderOfficer(); }
 }
 
 // ---------- phone
@@ -895,19 +912,32 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && notesOpen)
 
 function render() { renderOfficer(); renderPhone(); renderReceipt(); renderFunding(); renderNotes(); }
 function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; $("#toastbox").replaceChildren(el); setTimeout(() => el.remove(), 4200); }
-function show(v) {
+function show(v, jump) {
   for (const b of document.querySelectorAll("nav button")) b.setAttribute("aria-current", String(b.dataset.view === v));
   for (const s of document.querySelectorAll(".view")) s.hidden = s.id !== "v-" + v;
   try { localStorage.setItem("as-view", v); } catch (e) {}
+  if (jump) window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
-document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view); });
+const goTop = () => window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+$("#totop").addEventListener("click", goTop);
+window.addEventListener("scroll", () => { $("#totop").hidden = window.scrollY < 700; }, { passive: true });
+const intoView = el => el && el.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, select, textarea, [contenteditable]") || $("#v-officer").hidden) return;
+  if (e.key === "/") { e.preventDefault(); $("#q").focus(); return; }
+  if (e.key !== "j" && e.key !== "k") return;
+  const ids = [...document.querySelectorAll("#list .row")].map(r => r.dataset.id); if (!ids.length) return;
+  const i = ids.indexOf(sel); sel = ids[Math.max(0, Math.min(ids.length - 1, i + (e.key === "j" ? 1 : -1)))]; editing = false; renderOfficer();
+  const r = document.querySelector(`#list .row[data-id="${sel}"]`); if (r) r.scrollIntoView({ block: "nearest" });
+});
+document.querySelector("nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if (b) show(b.dataset.view, true); });
+$("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer", true); renderOfficer(); });
+$("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); intoView(document.querySelector(".filters")); });
+$("#list").addEventListener("click", e => { if (e.target.id === "clearf") { filter = "all"; shown = 60; $("#q").value = ""; $("#sub").value = ""; return renderOfficer(); } if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
 $("#floodtog") && $("#floodtog").addEventListener("change", e => { showFlood = e.target.checked; renderOfficer(); });
 if (!MAP) document.querySelectorAll(".maplegend").forEach(el => el.remove());
-$("#alertbar").addEventListener("click", e => { if (e.target.id !== "gotodo") return; filter = "todo"; shown = 60; const f = queue(pts())[0]; if (f) { sel = f.p.id; editing = false; } show("officer"); renderOfficer(); });
-$("#kpis").addEventListener("click", e => { const b = e.target.closest(".kpi"); if (!b) return; filter = b.dataset.f; shown = 60; renderOfficer(); });
-$("#list").addEventListener("click", e => { if (e.target.id === "more") { shown += 60; return renderOfficer(); } const r = e.target.closest(".row"); if (r) { sel = r.dataset.id; editing = false; renderOfficer(); } });
-$("#zoom").addEventListener("click", e => { const c = e.target.closest("circle[data-id]"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
-$("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); } });
+$("#zoom").addEventListener("click", e => { const c = e.target.closest("circle[data-id]"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
+$("#map").addEventListener("click", e => { const c = e.target.closest("circle"); if (c) { sel = c.dataset.id; editing = false; renderOfficer(); if (matchMedia("(max-width:900px)").matches) intoView($("#detail")); } });
 $("#q").addEventListener("input", () => { shown = 60; renderOfficer(); });
 $("#sub").addEventListener("change", () => { shown = 60; renderOfficer(); });
 $("#detail").addEventListener("click", e => {
@@ -938,6 +968,7 @@ $("#proof").addEventListener("click", async e => {
 $("#ident").innerHTML = PHONES.map(p => `<option value="${p.id}">${esc(p.label)}</option>`).join("");
 $("#ident").addEventListener("change", e => { ident = e.target.value; renderPhone(); });
 document.querySelector(".keys").addEventListener("click", e => { const b = e.target.closest("button"); if (b) send(b.dataset.q); });
+$("#samples").addEventListener("click", e => { const b = e.target.closest("button"); if (b) send(b.dataset.q); });
 $("#compose").addEventListener("submit", e => { e.preventDefault(); const v = $("#msgin").value; $("#msgin").value = ""; send(v); });
 $("#sub").insertAdjacentHTML("beforeend", [...new Set(PTS.map(p => p.sc))].sort().map(s => `<option>${s}</option>`).join(""));
 try { const v = localStorage.getItem("as-view"); if (v && document.getElementById("v-" + v)) show(v); } catch (e) {}

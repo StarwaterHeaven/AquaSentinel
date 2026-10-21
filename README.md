@@ -6,7 +6,23 @@ The scoring pipeline combines water-point status, repair history, committee reco
 
 > **Synthetic scenario and safety:** Kijana District and all data and results are fictional/synthetic. A score or report is not a water-safety determination. Only an appropriate laboratory test can establish whether water is safe to drink.
 
-**Try the [public demo](https://starwaterheaven.github.io/AquaSentinel/)**: open the officer view, or add `#phone`, `#funding`, or `#receipt` to the URL to open a specific view.
+**Live demo:** [officer view](https://starwaterheaven.github.io/AquaSentinel/) · [committee phone](https://starwaterheaven.github.io/AquaSentinel/#phone) · [funding and proof](https://starwaterheaven.github.io/AquaSentinel/#funding) · [receipt](https://starwaterheaven.github.io/AquaSentinel/#receipt). Republish with `scripts/publish_pages.sh`.
+
+![The officer console: urgent reports first, the score broken into five parts, and an SMS the officer approves before it goes out](docs/screenshot-officer.png)
+
+## Try it in 30 seconds
+
+No install needed. Open the officer view and the committee phone **in two windows of the same browser** so they stay in sync.
+
+1. **Officer view:** click the red bar, or the top water point, to see its score in five parts and the reasons in plain words.
+2. Press **Approve and send**. Nothing goes out until you do. On the public site the payment is labelled *Simulated*.
+3. **Committee phone:** the alert has arrived. Press **BROKEN**, **DRY** or **OK**, or type a message such as `0631 broken`.
+4. Back in the officer view, a new urgent report appears and the score has already changed.
+5. Open **Funding and proof** to follow a $1 sponsorship from sponsor to committee. **Reset demo** (top right) starts again.
+
+Keyboard: `/` jumps to search, `j` and `k` move down and up the list. Tabs scroll you to the top of their view.
+
+The full five-minute pitch and click path are in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md).
 
 **Watch the [2-minute demo video](docs/demo/aquasentinel-demo.mp4)** (captions, no sound):
 
@@ -149,6 +165,8 @@ The console has four main views:
 - **Funding and proof (`#funding`):** view sponsorship, metering, and funding records.
 - **Receipt (`#receipt`):** inspect the receipt view.
 
+![The committee phone: a committee member's text and what the system did with it](docs/screenshot-phone.png)
+
 In the demo, the officer remains in control of proposed actions. If the Qatom connector is unavailable, transactions are simulated and labelled accordingly. With a live connector, the user must approve a purchase in the TODAQ app or through its approval link before it is charged.
 
 When configured, the console polls the Torque report Worker for new WhatsApp, iMessage, and SMS reports. The Worker has a public read endpoint, while write endpoints require a secret that must not be committed. See [`docs/TORQUE.md`](docs/TORQUE.md) for setup and report formats.
@@ -200,7 +218,17 @@ The demo uses Qatom catalog items for example commerce flows:
 | 213 | Officer-approved water alert | $0.02 |
 | 214 | Submit a committee report through Torque | $0.001 |
 
-The app also uses $0.001 as an indicative metering price per scoring or agent call. Prices are scenario values, not a production tariff. The scenario estimates overall monitoring at approximately $3.46–$7.26 per point per year; see [`llms.txt`](llms.txt) for the stated assumptions. A proposed mechanic payment on confirmed repair is a future concept, not a live feature.
+The app also uses $0.001 as an indicative metering price per scoring or agent call. Prices are scenario values, not a production tariff. The scenario estimates overall monitoring at approximately $3.46–$7.26 per point per year; see [`llms.txt`](llms.txt) for the stated assumptions. The whole district comes to about $3,600–$7,600 a year, inside the district's own monitoring budget line ($7,300 budgeted, $5,200 released in 2025/26). Repairs are paid by sponsors (NGOs, councils, companies, the public) into the district escrow or one water point's escrow, topped up by committee tariffs. A proposed mechanic payment on confirmed repair is a future concept, not a live feature.
+
+## Limits, said plainly
+
+- **Synthetic data, scenario results.** Kijana is fictional. Nothing here says water is safe; only a lab test can, and alerts carry boil-water advice until one is done.
+- **The score advises, people decide.** At 47% precision, more than half of flagged points are not found broken. That is why the officer approves, edits or rejects every action.
+- **The backtest is a lower bound.** A pump repaired between the freeze date and the visit counts against us. The Aug-2025 survey covers only 124 points.
+- **The register overstates.** It says 79% work; the newest evidence supports at most 70%, and we treat 70% as a ceiling.
+- **Payments on the public site are simulated** and labelled. Two live Qatom transactions ran on 17 Oct 2026 (`91ca3e13…` for $1, `9d919d86…` for $0.02).
+- **Who it might leave out:** settlements with no signal and no visit. Silence is never read as working; those points go on the inspection list, and field-testing that list is the first next step.
+- **The SMS reader** places 33% of messages on the right point and 3% on a wrong one; the rest go to the officer with candidates rather than a guess.
 
 ## Repository guide
 
