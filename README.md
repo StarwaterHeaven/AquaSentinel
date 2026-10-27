@@ -21,7 +21,7 @@ The scoring pipeline combines water-point status, repair history, committee reco
 - **Community input:** the demo accepts English and common Swahili reports; Torque can submit reports from WhatsApp or connected iMessage/SMS to a Cloudflare Worker.
 - **Human control:** officer review comes before an alert or other proposed action is approved.
 - **Build:** Python scoring and export scripts generate the data embedded in a browser-based console.
-- **Demo payments:** actions can be simulated; Qatom transactions are live only when the required connector and user approval are available.
+- **Payments are real:** sponsoring a water point is a real $1 Qatom payment (card or Qatom wallet) on the public site too. Kijana is fictional, so Qatom donates the total collected by the demo to WaterAid Canada. Metered actions are drawn from that sponsor money.
 
 ## System architecture
 
@@ -149,7 +149,7 @@ The console has four main views:
 - **Funding and proof (`#funding`):** view sponsorship, metering, and funding records.
 - **Receipt (`#receipt`):** inspect the receipt view.
 
-In the demo, the officer remains in control of proposed actions. If the Qatom connector is unavailable, transactions are simulated and labelled accordingly. With a live connector, the user must approve a purchase in the TODAQ app or through its approval link before it is charged.
+In the demo, the officer remains in control of proposed actions. Without the Qatom connector, sponsorships go through Qatom's checkout instead; nothing is simulated. With a live connector, the user must approve a purchase in the TODAQ app or through its approval link before it is charged.
 
 When configured, the console polls the Torque report Worker for new WhatsApp, iMessage, and SMS reports. The Worker has a public read endpoint, while write endpoints require a secret that must not be committed. See [`docs/TORQUE.md`](docs/TORQUE.md) for setup and report formats.
 
