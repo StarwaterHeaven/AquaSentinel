@@ -3,6 +3,9 @@ main = "src/index.mjs"
 compatibility_date = "2026-09-01"
 workers_dev = true
 
+[vars]
+FUND_ITEM = "212"  # AquaSentinel: sponsor a Kijana water point, $1 (endpoint: /qatom/fund)
+
 [[durable_objects.bindings]]
 name = "LOG"
 class_name = "ReportLog"
@@ -11,4 +14,4 @@ class_name = "ReportLog"
 tag = "v1"
 new_sqlite_classes = ["ReportLog"]
 
-# WRITE_PATH is a Worker secret: wrangler secret put WRITE_PATH
+# Worker secrets: WRITE_PATH, QATOM_FULFILMENT_TOKEN (item 212 Authorization), QATOM_CLIENT_ID, QATOM_CLIENT_SECRET

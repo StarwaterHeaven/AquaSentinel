@@ -217,7 +217,7 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 
 <section class="view" id="v-receipt" hidden>
   <div class="panel">
-    <div class="ph"><h2>Running receipt · every metered action</h2><span class="note">Metered on the Agentic Commerce Infra (simulated in this build)</span></div>
+    <div class="ph"><h2>Running receipt · every metered action</h2><span class="note">Every metered action is drawn from sponsor money received on Qatom (real payments). Alerts are paid on Qatom item 213 when the officer has the Qatom connector.</span></div>
     <div class="tot" id="tot"></div>
     <div class="scroll-x"><table><thead><tr><th>When</th><th>What</th><th>Water point</th><th class="r">Units</th><th class="r">Cost</th></tr></thead><tbody id="ledger"></tbody></table></div>
   </div>
@@ -226,11 +226,11 @@ td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-
 <section class="view" id="v-funding" hidden>
   <div class="fundgrid">
     <div class="panel">
-      <div class="ph"><h2>Fund a water point</h2><span id="livebadge" class="sim">Simulated</span></div>
+      <div class="ph"><h2>Fund a water point</h2><span id="livebadge" class="live">Live on Qatom</span></div>
       <form class="form" id="fundform">
         <label for="fwp">Where the money goes<select id="fwp"></select></label>
         <label for="fsp">Sponsor name on the proof<input id="fsp" value="Team Ocean demo sponsor" autocomplete="off"></label>
-        <label for="famt" id="famtrow">Demo amount<select id="famt"><option value="1">$1</option><option value="0.1">$0.10</option><option value="0.05">$0.05</option></select><span class="note">Simulated payments only. A live Qatom payment is always $1.</span></label>
+        <p class="note" id="fundwhy"><b>Real money.</b> Each sponsorship is a real $1 payment on Qatom. Kijana District is fictional: Qatom will donate the total collected by this demo to WaterAid Canada.</p>
         <div class="btns"><button class="btn pri" type="submit" id="fundbtn">Fund $1</button></div>
         <p class="note" id="fundnote">Each contribution lands in the district escrow or one water point's escrow, and every spend is drawn from it with a receipt.</p>
         <div id="fundpending"></div>
@@ -379,12 +379,13 @@ function escrowState() {
 const escName = k => k === "DISTRICT" ? "District escrow (all water points)" : `${short(k)} ${BY[k] ? BY[k].n : k}`;
 function renderFunding() {
   const E = escrowState();
-  $("#livebadge").className = liveOn("fundItem") ? "live" : "sim";
-  $("#livebadge").textContent = liveOn("fundItem") ? "Live on Qatom" : "Simulated";
-  $("#fundnote").textContent = liveOn("fundItem") ? "Paid from your Qatom agent wallet after you approve in the TODAQ app. The receipt is tagged with the water point." : "Simulated in this view: the Qatom connector or the catalog items aren't available here. The record is kept the same way.";
-  $("#fundpending").innerHTML = pendingHTML("fund");
-  $("#famtrow").hidden = liveOn("fundItem");
-  $("#fundbtn").textContent = "Fund " + usd(liveOn("fundItem") ? PRICE.fund : +$("#famt").value || PRICE.fund);
+  const canPay = liveOn("fundItem") || !!REPORTS_URL;
+  $("#livebadge").className = canPay ? "live" : "sim";
+  $("#livebadge").textContent = canPay ? "Live on Qatom" : "Payments unavailable";
+  $("#fundnote").textContent = liveOn("fundItem") ? "Paid from your Qatom agent wallet after you approve in the TODAQ app. The receipt is tagged with the water point." : canPay ? "Opens Qatom's checkout in a new tab (card or Qatom wallet). The sponsorship appears here, with its Qatom transaction, as soon as the payment is confirmed." : "Payments aren't available in this view, so nothing can be charged.";
+  $("#fundpending").innerHTML = pendingHTML("fund") + checkoutHTML();
+  $("#fundbtn").textContent = "Fund " + usd(PRICE.fund);
+  $("#fundbtn").disabled = !canPay || !!checkout;
   const rows = Object.values(E).sort((a, b) => (a.k === "DISTRICT" ? -1 : b.k === "DISTRICT" ? 1 : b.in - a.in));
   $("#escrows").innerHTML = rows.map(e => `<tr><td>${esc(escName(e.k))}</td><td class="r">${usd(e.in)}</td><td class="r">${usd(e.spent)}</td><td class="r">${usd(e.in - e.spent)}</td></tr>`).join("");
   for (const b of document.querySelectorAll("#proofseg button")) b.setAttribute("aria-pressed", String(b.dataset.p === proofTab));
@@ -414,15 +415,56 @@ function proofCommittee(E) {
 }
 async function fund(approvalId) {
   const wp = $("#fwp").value, sponsor = $("#fsp").value.trim() || "Team Ocean demo sponsor";
-  let proof = "", live = false;
   if (liveOn("fundItem")) {
     const r = await qatomBuy("fundItem", { wp_id: wp, sponsor }, approvalId, { kind: "fund", wp });
     if (r.state !== "paid") return;
-    proof = r.proof; live = true;
+    const tx = (r.proof.match(/Qatom transaction ([0-9a-f-]{20,})/) || [])[1];
+    await put("funds", tx ? "tx-" + tx : uid(), { wp, sponsor, amount: PRICE.fund, at: Date.now(), live: true, proof: r.proof });
+    toast(`Payment received: ${usd(PRICE.fund)} from ${sponsor} to ${escName(wp)}.`);
+    return;
   }
-  const amount = live ? PRICE.fund : +$("#famt").value || PRICE.fund;
-  await put("funds", uid(), { wp, sponsor, amount, at: Date.now(), live, proof });
-  toast(`Payment received: ${usd(amount)} from ${sponsor} to ${escName(wp)}.`);
+  if (!REPORTS_URL) { toast("Payments aren't available here. Nothing was charged."); return; }
+  try {
+    const r = await fetch(REPORTS_URL + "/fund/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ wp_id: wp, sponsor }) });
+    const j = await r.json();
+    if (!j.ok || !j.checkout_url) { toast(j.message || "Qatom couldn't open the checkout. Nothing was charged."); return; }
+    checkout = { ref: j.ref, url: j.checkout_url, wp, sponsor };
+    try { window.open(j.checkout_url, "_blank", "noopener"); } catch (e) {}
+    render(); watchCheckout();
+  } catch (e) { toast("Couldn't reach the payment service. Nothing was charged."); }
+}
+
+// Public checkout (no connector): the report store opens a Qatom checkout for item 212 and records the
+// sponsorship when Qatom confirms the sale. Nothing is recorded here until then.
+let checkout = null, fundsAt = 0;
+function checkoutHTML() {
+  if (!checkout) return "";
+  return `<div class="pending"><b>Waiting for your payment on Qatom</b><a href="${esc(checkout.url)}" target="_blank" rel="noopener">Open the Qatom checkout</a><span class="note">${usd(PRICE.fund)} to ${esc(escName(checkout.wp))}. This page updates by itself once Qatom confirms the payment.</span><div class="btns"><button class="btn" type="button" data-cocancel="1">Close</button></div></div>`;
+}
+async function watchCheckout() {
+  const c = checkout; if (!c) return;
+  for (let i = 0; i < 200 && checkout === c; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const j = await (await fetch(REPORTS_URL + "/fund/" + c.ref, { cache: "no-store" })).json();
+      if (j.status === "paid") { checkout = null; await pullFunds(true); render(); toast(`Payment received: ${usd(j.amount)} from ${j.sponsor} to ${escName(j.wp_id)}.`); return; }
+    } catch (e) {}
+  }
+}
+async function pullFunds(force) {
+  if (!REPORTS_URL || (!force && Date.now() - fundsAt < 15000)) return;
+  fundsAt = Date.now();
+  try {
+    const { funds = [] } = await (await fetch(REPORTS_URL + "/funds", { cache: "no-store" })).json();
+    let changed = false;
+    for (const f of funds) {
+      const key = "tx-" + f.transaction_id;
+      if (!f.transaction_id || S.funds[key]) continue;
+      const rec = { wp: f.wp_id, sponsor: f.sponsor, amount: f.amount, at: Date.parse(f.at) || Date.now(), live: true, proof: `Qatom transaction ${f.transaction_id} · item 212 · ${f.amount} USD-TDN · ${String(f.at).slice(0, 19).replace("T", " ")} UTC · ${f.via}` };
+      if (db) { try { await db.collection("funds").doc(key).set(rec); } catch (e) {} } else { S.funds[key] = rec; changed = true; }
+    }
+    if (changed) { if (!db) saveLocal(); render(); }
+  } catch (e) {}
 }
 
 // ---------- officer view
@@ -690,6 +732,7 @@ let tqSince = 0, tqState = "off", tqBusy = false;
 try { tqSince = +localStorage.getItem(TQ_KEY) || 0; } catch (e) {}
 async function pollTorque() {
   if (!REPORTS_URL || tqBusy || document.hidden) return;
+  pullFunds();
   tqBusy = true;
   try {
     const r = await fetch(REPORTS_URL + "/reports?since=" + tqSince, { cache: "no-store" });
@@ -884,7 +927,6 @@ function noteGo(id) {
   render();
   if (!n.go && n.wp) $("#detail").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
-$("#famt").addEventListener("change", renderFunding);
 $("#bell").addEventListener("click", () => { notesOpen = !notesOpen; renderNotes(); });
 $("#notes").addEventListener("click", e => {
   if (e.target.id === "readall") { notesSeen = Date.now(); try { localStorage.setItem(SEEN_KEY, String(notesSeen)); } catch (x) {} return renderNotes(); }
@@ -923,7 +965,7 @@ $("#scan").addEventListener("click", async () => { await meter("Weekly scan: sco
 $("#fwp").innerHTML = `<option value="DISTRICT">District escrow (all water points)</option>` + PTS.slice().sort((a, b) => (view(b).nw - view(a).nw) || (view(a).score - view(b).score)).map(p => `<option value="${p.id}">${short(p.id)} ${esc(p.n)}</option>`).join("");
 $("#fwp").value = "KJ-WP-0631";
 $("#fundform").addEventListener("submit", e => { e.preventDefault(); fund(); });
-$("#fundform").addEventListener("click", e => { if (e.target.dataset.approved === "fund" && pending) fund(pending.approvalId); if (e.target.dataset.cancel) { pending = null; render(); } });
+$("#fundform").addEventListener("click", e => { if (e.target.dataset.approved === "fund" && pending) fund(pending.approvalId); if (e.target.dataset.cancel) { pending = null; render(); } if (e.target.dataset.cocancel) { checkout = null; render(); } });
 $("#fwp").addEventListener("change", renderFunding);
 $("#fsp").addEventListener("input", renderFunding);
 $("#proofseg").addEventListener("click", e => { const b = e.target.closest("button[data-p]"); if (b) { proofTab = b.dataset.p; renderFunding(); } });
