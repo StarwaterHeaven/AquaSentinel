@@ -43,13 +43,21 @@ Hassan's standing rule (24 Oct 2026): every demo is fully live, with real money 
 - **Sponsorships:** "Fund $1" calls the report store's `/fund/start`, which opens a Qatom checkout for item 212 (card or Qatom wallet). Item 212's endpoint is now the store's `/qatom/fund`. The store checks each sale with Qatom (`/v4/catalog/purchases/<tx>`), records it once per transaction, and lists it on the public `/funds` feed, which the console reads. Reset never clears real sponsorships.
 - **No simulated fallback:** without Qatom credentials the store refuses (503) and the console says nothing was charged. The demo-amount selector ($0.10 / $0.05) is gone.
 - **Metered actions** (SMS, scoring, Torque reports) are an escrow ledger drawn from the sponsor money received. Alerts are bought on item 213 only in the owner's console with the Qatom connector.
-- **Demo video:** the 17 Oct video shows the earlier simulated payments. A re-recording on real payments replaces it once the live flow is deployed.
+- **Demo video:** the 17 Oct video shows the earlier simulated payments. A re-recording on real payments replaces it.
+- **Live since 18 Nov 2026:** the report store was redeployed (Worker version 0b0021a9), item 212 now points at `/qatom/fund`, and the public console was republished from this branch's template.
+
+## Status for the WaterAid Canada handoff (18 Nov 2026)
+
+- The payments and the underlying rail are all real USD on Qatom; the sponsor, water officer, water point and mechanic personas are simulated.
+- SMS and text messages were real, not simulated; the messaging architecture needs hardening before production.
+- Escrow accounts are built; for the demo we used an app ledger.
+- Payout infrastructure is built; the payout UI and banking gateway need customising for the country where the pilot is deployed.
 
 ## Known issues
 
 - A WhatsApp report that can't be placed yet (the store asked back for the pump number) is metered to the district escrow. If the district escrow is empty, the escrows table shows −$0.001 there (seen in the video). Fix: don't meter an ask-back to an escrow, or charge it to the reporting channel's own line.
 - The console polls the report store every 4 seconds from every open window. That is fine for a demo, but at district scale it should poll less often or receive pushed updates.
-- The committee phone in the console is an SMS-style simulation, not a cellular connection. Committees reach Torque on real WhatsApp, iMessage or SMS.
+- The messaging path (Torque on WhatsApp, iMessage/SMS through Inkbox) works with real messages but needs hardening before production volumes.
 
 ## What we learned (carried into the Qatom guides)
 

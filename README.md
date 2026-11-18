@@ -12,7 +12,9 @@ The scoring pipeline combines water-point status, repair history, committee reco
 
 [![AquaSentinel demo walkthrough](docs/demo/aquasentinel-demo-poster.jpg)](docs/demo/aquasentinel-demo.mp4)
 
-> **Status:** presented on 17 October 2026. The build is frozen at its pitch state. See [`docs/WRAP-UP.md`](docs/WRAP-UP.md) for what is still live, the open decisions, known issues and what we learned.
+**Screenshots** (public console, 18 Nov 2026): [officer priority list and score](docs/screenshots/01-officer-priority-and-score.png) and [funding and proof, live on Qatom](docs/screenshots/02-funding-and-proof.png).
+
+> **Status:** presented on 17 October 2026. Since 18 November 2026 the public console runs on real payments: "Fund $1" is a real Qatom checkout. See [`docs/WRAP-UP.md`](docs/WRAP-UP.md) for what is still live, the open decisions, known issues and what we learned.
 
 ## At a glance
 
@@ -69,9 +71,9 @@ flowchart LR
 1. **Build a snapshot.** The scorer reads the nine local CSV tables and writes one score record per water point. The exporter turns those records into compact JSON, and the app builder embeds that JSON, the HTML template, and seed demo records in a standalone page.
 2. **Review priorities.** The browser app recomputes the displayed score, status, confidence, and suggested actions from each embedded record plus any newer committee report. Its to-do list brings urgent reports, repair follow-ups, and silent points needing inspection to the officer's attention. The officer reviews proposed actions; nothing is approved automatically.
 3. **Receive reports.** The Committee phone is an SMS-style interaction inside the demo, not a connection to a cellular network. Separately, Torque can submit reports received on WhatsApp, iMessage, or SMS to the Cloudflare Worker. The console polls the Worker and applies accepted reports to its live state without rebuilding the snapshot.
-4. **Record actions.** Demo actions are labelled as simulations unless the viewer has a working Qatom connector. A live checkout may require the user to approve it in TODAQ; the resulting transaction details appear in the funding and receipt views.
+4. **Record actions.** The payments and the underlying rail are all real USD on Qatom; the sponsor, water officer, water point and mechanic personas are simulated. A live checkout may require the user to approve it in TODAQ; the resulting transaction details appear in the funding and receipt views.
 
-The generated page can run locally as a prototype. Shared state depends on the host database integration; without it, the browser uses local storage and can synchronize tabs on the same device. The report Worker and Qatom are separate, optional integrations. The Committee phone view is an SMS-style simulation, not a cellular connection; committees can separately reach Torque on WhatsApp or, through Inkbox, iMessage/SMS. This repository does not provide a production SMS-aggregator integration or an automatic mechanic-payment flow.
+The generated page can run locally as a prototype. Shared state depends on the host database integration; without it, the browser uses local storage and can synchronize tabs on the same device. The report Worker and Qatom are separate, optional integrations. SMS and text messages to and from committees are real (Torque on WhatsApp, and iMessage/SMS through Inkbox); the messaging architecture needs hardening before production. Escrow accounts are built; the demo uses an app ledger. Payout infrastructure is built; its UI and banking gateway are customised for the country where a pilot is deployed.
 
 ## Get started
 
@@ -200,7 +202,7 @@ The demo uses Qatom catalog items for example commerce flows:
 | 213 | Officer-approved water alert | $0.02 |
 | 214 | Submit a committee report through Torque | $0.001 |
 
-The app also uses $0.001 as an indicative metering price per scoring or agent call. Prices are scenario values, not a production tariff. The scenario estimates overall monitoring at approximately $3.46–$7.26 per point per year; see [`llms.txt`](llms.txt) for the stated assumptions. A proposed mechanic payment on confirmed repair is a future concept, not a live feature.
+The app also uses $0.001 as an indicative metering price per scoring or agent call. Prices are scenario values, not a production tariff. The scenario estimates overall monitoring at approximately $3.46–$7.26 per point per year; see [`llms.txt`](llms.txt) for the stated assumptions. Payout infrastructure for paying a mechanic on a confirmed repair is built; its UI and banking gateway are customised for the pilot country.
 
 ## Repository guide
 
