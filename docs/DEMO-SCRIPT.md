@@ -34,12 +34,12 @@ Presenter: **Vladyslav**. Committee phone: **Ruth**, if she is there. Otherwise 
 
 1. **Window A, Water officer.** Point at the top tiles: "323 not working, at the top of the list." Point at the map: "Every dot is a water point, coloured by score."
 2. Click **Olagoni Shallow Well, 26**. "Five parts, each out of 20, and the reasons in plain words: reported broken by text a year ago and nobody came, E. coli in its last test, no tariff, no savings."
-3. "Nothing goes out without the officer." Press **Approve and send**. (In this public build the payment is labelled Simulated; say: "This morning we ran this exact step live on Qatom. The receipts are in the proof view.")
+3. "Nothing goes out without the officer." Press **Approve and send**. (Since late Oct the public build takes real payments; alerts are bought on item 213 in the owner's console.)
 4. **Window B, Committee phone.** The alert has arrived. Press **OK** or **BROKEN**. "The committee replies with one word."
 5. **Window A.** A red bar says a new report needs a decision, and the Water officer tab shows a count. Click **Open the to-do list**: "Urgent reports first, then broken pumps nobody has been sent to, then job cards to chase, then silent pumps to inspect. Approving clears it."
 6. Optional, if the flood CSV is there: **Import messages (CSV)** in window A. "Here are today's flood reports: each matched to a water point and rescored, and the ones we can't place go to the officer."
 7. Open **Funding and proof** (tab in window A). Show the escrows table and the **Committee** proof for 0631: "$1 from a sponsor this morning, live on Qatom, transaction 91ca3e13. The sponsor, the officer and the committee each see where it went."
-8. Optional, about 30 seconds, if there is time: **the officer's alerts**. In **Funding and proof**, choose water point **0151** (Olango), set **Demo amount** to **$0.05** and press **Fund**. In window B pick the **Olango committee chair** and text **BROKEN** twice. In window A open the **Notifications** bell: "The officer is told the committee reported it broken, that the sponsor's money has arrived, and that this water point's escrow is running low, before it runs out." (The amount choice only exists for simulated payments; a live Qatom payment is always $1.) Press **Reset demo** afterwards.
+8. Optional, about 30 seconds, if there is time: **the officer's alerts**. In **Funding and proof**, choose water point **0151** (Olango), press **Fund $1** and pay on the Qatom checkout (a real $1). In window B pick the **Olango committee chair** and text **BROKEN** twice. In window A open the **Notifications** bell: "The officer is told the committee reported it broken, that the sponsor's money has arrived, and that this water point's escrow is running low, before it runs out." Press **Reset demo** afterwards.
 
 ## Optional: a real phone via Torque (about 30 seconds)
 
@@ -47,7 +47,7 @@ Torque, our agent, answers committees on WhatsApp and by text. To text it, send 
 
 ## If a judge asks
 
-- **"Is the payment real?"** Yes: two live Qatom transactions today, 91ca3e13 ($1 sponsorship, item 212) and 9d919d86 ($0.02 officer-approved alert, item 213). The public page replays them; new payments on this page are simulated and labelled.
+- **"Is the payment real?"** Yes: two live Qatom transactions today, 91ca3e13 ($1 sponsorship, item 212) and 9d919d86 ($0.02 officer-approved alert, item 213). Every new sponsorship on the public page is a real $1 Qatom payment too, donated to WaterAid Canada.
 - **"What if the score is wrong?"** The officer edits or rejects; every decision is recorded. The score advises, people decide.
 - **"Is the water safe?"** No score can say so. Only a lab test can, and the alerts carry boil-water advice until one is done.
 - **"Why 20 points each?"** Equal weights are easy to defend and change; the backtest tells us where to move them.

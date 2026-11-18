@@ -23,7 +23,7 @@ How it was made: [`scripts/demo/record_demo.py`](../scripts/demo/record_demo.py)
 
 | Piece | Where | State after the event |
 |---|---|---|
-| Public console | https://starwaterheaven.github.io/AquaSentinel/ (gh-pages, built from `main` at 76d9e16) | Live. Payments simulated and labelled. |
+| Public console | https://starwaterheaven.github.io/AquaSentinel/ (gh-pages) | Live. Since late Oct 2026, sponsorships are real $1 Qatom payments (see "After the hackathon" below). |
 | Report store | Cloudflare Worker `aquasentinel-reports` (Durable Object `ReportLog`), source in [`torque/worker/`](../torque/worker/) | Live. Public read `/reports`, free `/check`; writes need the secret path. |
 | Qatom item 212 | AquaSentinel: sponsor a Kijana water point, $1 | Live, demo item. Live transaction `91ca3e13-86db-49fd-a584-ee507eb9f8de` ($1 sponsorship of KJ-WP-0631). |
 | Qatom item 213 | AquaSentinel: send an approved water alert, $0.02 | Live, demo item. Live transaction `9d919d86-a347-4e0b-8d26-7fb395bbca91`. |
@@ -35,6 +35,15 @@ How it was made: [`scripts/demo/record_demo.py`](../scripts/demo/record_demo.py)
 - **Items 212 to 214.** They were kept live "until judging ends". Items 212 and 213 point at a test echo endpoint and deliver nothing beyond a receipt. Either archive all three, or keep them as a labelled demo and let the catalog Scorecard score them as they stand.
 - **Report store write path.** The secret path was shared with Torque by email for the demo. If the store stays up, rotate it (`bash torque/deploy.sh` makes a new one when the secret file is removed) and re-brief Torque; if not, delete the Worker.
 - **Public demo.** Keep the gh-pages site up as the team's showcase, or archive the repo read-only.
+
+## After the hackathon: zero simulation (Oct 2026)
+
+Hassan's standing rule (24 Oct 2026): every demo is fully live, with real money and no simulated mode. On 26 Oct he chose to make the public console live, and to donate the money it collects to WaterAid Canada because Kijana is fictional.
+
+- **Sponsorships:** "Fund $1" calls the report store's `/fund/start`, which opens a Qatom checkout for item 212 (card or Qatom wallet). Item 212's endpoint is now the store's `/qatom/fund`. The store checks each sale with Qatom (`/v4/catalog/purchases/<tx>`), records it once per transaction, and lists it on the public `/funds` feed, which the console reads. Reset never clears real sponsorships.
+- **No simulated fallback:** without Qatom credentials the store refuses (503) and the console says nothing was charged. The demo-amount selector ($0.10 / $0.05) is gone.
+- **Metered actions** (SMS, scoring, Torque reports) are an escrow ledger drawn from the sponsor money received. Alerts are bought on item 213 only in the owner's console with the Qatom connector.
+- **Demo video:** the 17 Oct video shows the earlier simulated payments. A re-recording on real payments replaces it once the live flow is deployed.
 
 ## Known issues
 
